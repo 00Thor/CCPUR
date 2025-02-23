@@ -1,8 +1,8 @@
 pipeline {
     agent any
     environment {
-        DOCKER_IMAGE = "ccpurV1" // Name of the Docker image
-        DOCKER_REGISTRY = "paubiaksang/ccpurV1" // Docker Hub repository
+        DOCKER_IMAGE = "ccpurv1" // Lowercase name for the Docker image
+        DOCKER_REGISTRY = "paubiaksang/ccpurv1" // Docker Hub repository
     }
     stages {
         stage('Build Docker Image') {
