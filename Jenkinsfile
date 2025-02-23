@@ -1,65 +1,28 @@
 pipeline {
     agent any
-
     environment {
-        DOCKER_IMAGE = 'my-node-app:latest'
-        KUBE_CONFIG_PATH = '/path/to/kubeconfig' // Path to Kubernetes config on Jenkins server
+        DOCKER_IMAGE = "ccpurV1" // Name of the Docker image
+        DOCKER_REGISTRY = "paubiaksang/ccpurV1" // Docker Hub repository
     }
-
     stages {
-        stage('Checkout') {
-            steps {
-                echo 'Checking out code from Git...'
-                checkout scm
-            }
-        }
-
-        stage('Build') {
+        stage('Build Docker Image') {
             steps {
                 echo 'Building Docker image...'
                 sh 'docker build -t $DOCKER_IMAGE .'
             }
         }
-
-        stage('Test') {
-            steps {
-                echo 'Running tests...'
-                sh 'npm test'
-            }
-        }
-
         stage('Push to Docker Registry') {
             steps {
                 echo 'Pushing Docker image to registry...'
-                withCredentials([usernamePassword(credentialsId: 'docker-registry-credentials', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                withCredentials([usernamePassword(credentialsId: 'docker-registry-details', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
                     sh '''
-                        docker login -u $USERNAME -p $PASSWORD
-                        docker tag $DOCKER_IMAGE your-docker-repo/$DOCKER_IMAGE
-                        docker push your-docker-repo/$DOCKER_IMAGE
+                        docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+                        docker tag $DOCKER_IMAGE $DOCKER_REGISTRY
+                        docker push $DOCKER_REGISTRY
+                        docker logout
                     '''
                 }
             }
-        }
-
-        stage('Deploy to Kubernetes') {
-            steps {
-                echo 'Deploying application to Kubernetes...'
-                withCredentials([file(credentialsId: 'kubeconfig-credentials', variable: 'KUBECONFIG')]) {
-                    sh '''
-                        export KUBECONFIG=$KUBECONFIG
-                        kubectl apply -f kubernetes/backend-deployment.yaml
-                    '''
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'Pipeline executed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed. Check the logs.'
         }
     }
 }
