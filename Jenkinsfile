@@ -14,7 +14,7 @@ pipeline {
         stage('Push to Docker Registry') {
             steps {
                 echo 'Pushing Docker image to registry...'
-                withCredentials([usernamePassword(credentialsId: 'docker-registry-details', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                withCredentials([usernamePassword(credentialsId: 'ccpurV1-dockerhub', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
                     sh '''
                         docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
                         docker tag $DOCKER_IMAGE $DOCKER_REGISTRY
