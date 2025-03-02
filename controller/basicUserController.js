@@ -79,15 +79,14 @@ const login = async (req, res) => {
 
     // Generate JWT with user role
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, program: user.program },
+      { user_id: user.user_id, email: user.email, role: user.role, program: user.program },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "10h" }
     );
-
-    res.json({
-      message: "Login successful",
-      token
-    });
+   res.json({
+       message: "Login successful",
+       token
+     });
   } catch (error) {
     console.error("Error in login:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -122,11 +121,11 @@ const forgotpassword = async (req, res) => {
     );
 
     // Send email with reset link
-    const resetLink = `${process.env.FRONTEND_URL}/resetpassword/${resetToken}`;
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
     
     // Send email using Nodemailer
     await transporter.sendMail({
-      from: `"Support" <${process.env.EMAIL_USER}>`, // Sender name & email
+      from: `"FrameImpacts@Support" <${process.env.EMAIL_USER}>`, // Sender name & email
       to: email,
       subject: "Password Reset Request",
       html: `<p>Click <a href="${resetLink}">here</a> to reset your password.</p>`,
@@ -163,10 +162,45 @@ const resetpassword = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+const getUser = async (req, res) => {
+  try {
+    // Ensure `req.user` has been set by middleware
+    if (!req.user || !req.user.email) {
+      return res.status(400).json({ error: "Invalid request. User email is missing." });
+    }
+
+    const email = req.user.email; // Extract email from the authenticated request
+    console.log("Decoded user email:", email);
+
+    // Query the database to find the user
+    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    console.log("Query result:", result.rows);
+
+    // Check if user exists
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Extract the user's details
+    const user = result.rows[0];
+
+    // Respond with the user's details
+    res.status(200).json({
+      name: user.name,
+      program: user.program,
+    });
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+
 
 module.exports = {
   newUser,
   login,
   resetpassword,
   forgotpassword,
+  getUser,
 };

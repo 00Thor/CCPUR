@@ -1,7 +1,7 @@
 const studentExamination = require("../models/modelSemesterExamination");
 require("../config/db");
 
-const semesterExamination = async (req, res, next) => {
+const semesterExamination = async (req, res) => {
   try {
     const studentData = req.body; // Extract student data from request body
 

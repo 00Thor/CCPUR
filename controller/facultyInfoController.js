@@ -1,5 +1,5 @@
-const { teachingStaff, nonTeachingStaff, insertAttendance, getStaff, deleteStaffDetails, updateStaffById } = require('../models/facultyInfoModels');
-const pool = require('../config/db'); // Ensure pool is imported for database queries
+const { teachingStaff, nonTeachingStaff, insertAttendance, getStaff, deleteStaffDetails, updateStaffById, getFacultyById } = require('../models/facultyInfoModels');
+require('../config/db'); // Ensure pool is imported for database queries
 
 // Fetch Teaching Staff
 const getTeachingStaff = async (req, res) => {
@@ -96,7 +96,7 @@ const deleteStaff = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Faculty details not found' });
         }
 
-        res.json({ success: true, message: 'Faculty deleted successfully', deletestaff });
+        res.json({ success: true, message: 'Faculty deleted successfully', deletedstaff });
     } catch (error) {
         console.error("Error deleting staff:", error.message);
         res.status(500).json({ success: false, message: 'An error occurred while deleting the staff details' });

@@ -1,5 +1,7 @@
 const { getStudents, getStaff, updateStudentById, deletingStudent, getLatestAdmittedStudents} = require('../models/adminModels');
 const pool = require('../config/db'); // Import the pool
+
+
 // Get student details with pagination(Admin & Staff)
 async function getStudentsDetails(req, res) {
     try {
@@ -126,19 +128,19 @@ const rejectApplicant = async (req, res) => {
 
 const getLatestStudents = async (req, res) => {
     try {
-        const result = await getLatestAdmittedStudents();
-        const students = result.rows;
+        const students = await getLatestAdmittedStudents(); // Already returns rows
 
-        if (students.length === 0) {
+        if (!students || students.length === 0) {
             return res.status(404).json({ message: 'No recently admitted students found' });
         }
 
-        res.status(200).json(students);
+        res.status(200).json(students); // Return the list of students
     } catch (error) {
         console.error('Error fetching latest admitted students:', error);
         res.status(500).json({ message: 'Internal Server Error' });
     }
 };
+
 
 
 module.exports = { getStudentsDetails, getAllStudentsDetails, getStaffDetails, deleteStudent, updateStudent, approveApplicant, rejectApplicant, getLatestStudents};

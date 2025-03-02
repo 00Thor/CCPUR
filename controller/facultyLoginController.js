@@ -1,16 +1,19 @@
-const { findFacultyByEmail, createFaculty, updateFacultyPassword } = require("../models/facultyModel");
+const { findFacultyByEmail, createFaculty, updateFacultyPassword } = require("../models/facultyLoginModel");
+const {uploadFacultyFiles }= require("./fileUploadController");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
+require("nodemailer");
 require("dotenv").config();
 
 // Register a new faculty member
 const newFaculty = async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { name, email, password, department, designation, nature_of_appointment, type, phone_number, profile_picture} = req.body;
+    await client.query("BEGIN"); // Start a database transaction
+    const facultyData = req.body;
 
     // Validate required fields
-    if (!name || !email || !password || !department || !designation  || !nature_of_appointment || !type || !phone_number || !profile_picture) {
+    if (!name || !email || !password || !department || !designation  || !nature_of_appointment || !engagement || !phone_number || !profile_picture ||!date_of_joining || !teaching_experience || !address || !pan_no || !date_of_birth || !gender || !category) {
       return res.status(400).json({ message: "Please provide all required details" });
     }
 
@@ -24,23 +27,23 @@ const newFaculty = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Insert new faculty into the database
-    const newFaculty = await createFaculty(name, email, hashedPassword, department, designation, nature_of_appointment, type, phone_number, profile_picture);
+    const newFaculty = await createFaculty(facultyData, hashedPassword);
     if (!newFaculty) {
       return res.status(500).json({ message: "Error creating faculty" });
     }
+
+    // Handle file uploads
+    await uploadFacultyFiles(req, res);
+
+    // Commit the transaction
+    await client.query("COMMIT");
+
     return res.status(201).json({
       message: "Faculty registered successfully",
       faculty: {
         id: newFaculty.id,
         name: newFaculty.name,
         email: newFaculty.email,
-        department: newFaculty.department,
-        designation: newFaculty.designation,
-        nature_of_appointment: newFaculty.nature_of_appointment,
-        type: newFaculty.type,
-        phone_number: newFaculty.phone_number,
-        profile_picture: newFaculty.profile_picture
-
       },
     });
   } catch (error) {

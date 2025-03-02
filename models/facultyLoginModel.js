@@ -23,6 +23,7 @@ const updateStaffPassword = async (email, hashedPassword) => {
 module.exports = {
   findStaffByEmail,
   updateStaffPassword,
+  createFaculty
 };
 
 

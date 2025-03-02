@@ -2,28 +2,25 @@ const fs = require("fs");
 const path = require("path");
 const pool = require("../config/db");
 
-// Upload files and save their paths in the database
-const uploadFiles = async (req, res) => {
+const studentFilesUpload = async (req) => {
+  const uploadedFiles = []; // Track uploaded files for rollback
   try {
-    const { user_id, applicant_id, student_id } = req.body;
+    const { user_id, applicant_id } = req.body;
 
-    if (!user_id || !applicant_id || !student_id) {
-      return res
-        .status(400)
-        .json({ error: "User ID, Applicant ID, and Student ID are required." });
+    if (!user_id || !applicant_id) {
+      throw new Error("User ID and Applicant ID are required for file uploads.");
     }
 
-    // Ensure files are present
-    if (!req.files) {
-      return res.status(400).json({ error: "No files were uploaded." });
+    if (!req.files || Object.keys(req.files).length === 0) {
+      throw new Error("No files were uploaded.");
     }
 
     // Extract file paths
     const filePaths = {
-      passport_path: req.files?.passport?.[0]?.filename
+      passport: req.files?.passport?.[0]?.filename
         ? `/uploads/${req.files.passport[0].filename}`
         : null,
-      signature_path: req.files?.signature?.[0]?.filename
+      signature: req.files?.signature?.[0]?.filename
         ? `/uploads/${req.files.signature[0].filename}`
         : null,
       xadmitcard: req.files?.xadmitcard?.[0]?.filename
@@ -46,19 +43,23 @@ const uploadFiles = async (req, res) => {
         : null,
     };
 
+    // Track uploaded files for rollback
+    Object.values(filePaths).forEach((filePath) => {
+      if (filePath) uploadedFiles.push(path.join(__dirname, "..", filePath));
+    });
+
     // Save file paths to the database
     await pool.query(
       `
       INSERT INTO file_uploads 
-      (user_id, applicant_id, student_id, passport_path, signature_path, xadmitcard, xiiadmitcard, xmarksheet, xiimarksheet, migration, tribe)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      (user_id, applicant_id, passport, signature, xadmitcard, xiiadmitcard, xmarksheet, xiimarksheet, migration, tribe)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `,
       [
         user_id,
         applicant_id,
-        student_id,
-        filePaths.passport_path,
-        filePaths.signature_path,
+        filePaths.passport,
+        filePaths.signature,
         filePaths.xadmitcard,
         filePaths.xiiadmitcard,
         filePaths.xmarksheet,
@@ -68,12 +69,22 @@ const uploadFiles = async (req, res) => {
       ]
     );
 
-    res.status(201).json({ success: "Files uploaded successfully.", filePaths });
+    return { success: true, filePaths };
   } catch (error) {
     console.error("Error uploading files:", error);
-    res.status(500).json({ error: "File upload failed. Please try again later." });
+
+    // Rollback: Delete uploaded files
+    uploadedFiles.forEach((file) => {
+      fs.unlink(file, (err) => {
+        if (err) console.error("Error deleting file during rollback:", file, err);
+      });
+    });
+
+    throw new Error("File upload failed. Please try again later.");
   }
 };
+
+
 
 // Get files metadata by user ID (returns file info, not actual files)
 const getFilesByUserId = async (req, res) => {
@@ -110,7 +121,7 @@ const getSecureFiles = async (req, res) => {
 
     // Fetch file paths from the database
     const query = `
-      SELECT passport_path, signature_path, tribe, xadmitcard, xiiadmitcard, xmarksheet, xiimarksheet, migration
+      SELECT passport, signature, tribe, xadmitcard, xiiadmitcard, xmarksheet, xiimarksheet, migration
       FROM file_uploads 
       WHERE user_id = $1
     `;
@@ -120,12 +131,12 @@ const getSecureFiles = async (req, res) => {
       return res.status(404).json({ error: "Files not found for the given user" });
     }
 
-    const { passport_path, signature_path, tribe, xadmitcard, xiiadmitcard, xiimarksheet, xmarksheet, migration } = fileResult.rows[0];
+    const { passport, signature, tribe, xadmitcard, xiiadmitcard, xiimarksheet, xmarksheet, migration } = fileResult.rows[0];
 
     // Construct file paths
     const filePaths = {
-      passport_path: passport_path ? path.join(__dirname, "..", passport_path) : null,
-      signature_path: signature_path ? path.join(__dirname, "..", signature_path) : null,
+      passport_path: passport ? path.join(__dirname, "..", passport) : null,
+      signature_path: signature ? path.join(__dirname, "..", signature) : null,
       tribe_path: tribe ? path.join(__dirname, "..", tribe) : null,
       xadmitcard_path: xadmitcard ? path.join(__dirname, "..", xadmitcard) : null,
       xiiadmitcard_path: xiiadmitcard ? path.join(__dirname, "..", xiiadmitcard) : null,
@@ -157,4 +168,97 @@ const getSecureFiles = async (req, res) => {
   }
 };
 
-module.exports = { uploadFiles, getFilesByUserId, getSecureFiles };
+const uploadFacultyFiles = async (req, res) => {
+  try {
+    const { faculty_id } = req.body;
+
+    if (!faculty_id) {
+      return res.status(400).json({ error: "Faculty ID is required." });
+    }
+
+    // Ensure files are present
+    if (!req.files || !req.files.profile) {
+      return res.status(400).json({ error: "Profile picture is required." });
+    }
+
+    // Extract file paths
+    const profilePicturePath = req.files.profile[0]?.filename
+      ? `/uploads/facultyPhoto/${req.files.profile[0].filename}`
+      : null;
+
+    if (!profilePicturePath) {
+      return res.status(400).json({ error: "Failed to process the profile picture." });
+    }
+
+    // Save file paths to the database
+    const query = `
+      UPDATE faculty
+      SET profile_picture = $1
+      WHERE faculty_id = $2
+    `;
+    await pool.query(query, [profilePicturePath, faculty_id]);
+
+    res.status(201).json({
+      success: "Profile picture uploaded successfully.",
+      filePaths: { profile_picture: profilePicturePath },
+    });
+  } catch (error) {
+    console.error("Error uploading files:", error);
+    res.status(500).json({ error: "File upload failed. Please try again later." });
+  }
+};
+
+
+// Retrieve specific files securely for a given faculty member
+const getFacultyFiles = async (req, res) => {
+  try {
+    const { faculty_id } = req.params;
+    const requestingUserId = req.user.id;
+    const userRole = req.user.role;
+
+    // Validate user access
+    if (userRole !== "admin" && userRole !== "staff" && requestingUserId !== faculty_id) {
+      return res.status(403).json({ error: "Access denied: You can only access your own files" });
+    }
+
+    // Fetch file paths from the database
+    const query = `
+      SELECT profile_picture
+      FROM faculty
+      WHERE faculty_id = $1
+    `;
+    const fileResult = await pool.query(query, [faculty_id]);
+
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: "No files found for the given faculty member" });
+    }
+
+    const { profile_picture } = fileResult.rows[0];
+
+    // Construct file path
+    const profilePicturePath = profile_picture
+      ? path.join(__dirname, "..", profile_picture)
+      : null;
+
+    // Check file existence and generate URLs
+    const files = {};
+    if (profilePicturePath && fs.existsSync(profilePicturePath)) {
+      files.profile_picture_url = `/uploads/facultyPhoto/${path.basename(profilePicturePath)}`;
+    }
+
+    if (Object.keys(files).length === 0) {
+      return res.status(404).json({ error: "No files exist on the server for the given faculty member" });
+    }
+
+    res.status(200).json({
+      message: "Successfully retrieved files",
+      files,
+    });
+  } catch (error) {
+    console.error("Error fetching files:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+
+module.exports = { studentFilesUpload, getFilesByUserId, getSecureFiles, uploadFacultyFiles, getFacultyFiles };

@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+const pool = require("../config/db"); 
 
 async function getStudents(filters, limit, offset) {
     let query = 'SELECT * FROM student_details WHERE 1=1';
@@ -16,7 +16,7 @@ async function getStudents(filters, limit, offset) {
     query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     values.push(limit, offset);
 
-    return _query(query, values);
+    return query(query, values);
 }
 // Get faculty/staff details with optional filters & pagination
 async function getStaff(filters, limit, offset) {
@@ -33,7 +33,7 @@ async function getStaff(filters, limit, offset) {
     query += ` LIMIT $${count} OFFSET $${count + 1}`;
     values.push(limit, offset);
 
-    return _query(query, values);
+    return query(query, values);
 }
 
 // Delete a student either by Roll Number or Aadhaar Number
@@ -56,7 +56,7 @@ const deletingStudent = async (req, res) => {
             values = [aadhaar_no];
         }
 
-        const result = await _query(query, values);
+        const result = await query(query, values);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, message: "Student not found" });
@@ -92,7 +92,7 @@ const updateStudentById = async (studentId, updatedFields) => {
         const query = `UPDATE student_details SET ${setClause} WHERE student_id = $${values.length} RETURNING *`;
 
         // Execute query
-        const result = await _query(query, values);
+        const result = await query(query, values);
 
         if (result.rows.length === 0) {
             throw new Error("Student not found");
@@ -110,11 +110,15 @@ const getLatestAdmittedStudents = async () => {
     const query = `
         SELECT * FROM student_details
         ORDER BY admission_date DESC
-        LIMIT 5;
+        LIMIT 7;
     `;
-    const result = await _query(query);
-    return result; // Ensure you return the whole result object
+    try {
+        const result = await pool.query(query); // Use pool.query or client.query
+        return result.rows; // Return only the rows
+    } catch (error) {
+        console.error("Error fetching latest admitted students:", error);
+        throw error; // Re-throw the error to handle it in the caller
+    }
 };
-
 
 module.exports= { getStudents, getStaff, deletingStudent, updateStudentById, getLatestAdmittedStudents };

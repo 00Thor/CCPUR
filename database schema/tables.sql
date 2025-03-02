@@ -8,45 +8,6 @@ role VARCHAR(50) NOT NULL DEFAULT 'student'
 );
 
 
-
-CREATE TABLE student_examinations (
-    examination_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES student_details(student_id) ON DELETE CASCADE,
-    application_for VARCHAR(100),
-    examination_session VARCHAR(50),
-    abc_id VARCHAR(50) UNIQUE,
-    registration_no VARCHAR(100) UNIQUE,
-    of_year VARCHAR(50),
-    roll_no VARCHAR(50) UNIQUE,
-    dept_code VARCHAR(50),
-    fathers_name VARCHAR(255),
-    guardian_name VARCHAR(255),
-    permanent_address TEXT,
-    course_code VARCHAR(50),
-    year_semester VARCHAR(50),
-    sex VARCHAR(10),
-    category VARCHAR(50),
-    papercode_a VARCHAR(50), paperno_a VARCHAR(50),
-    papercode_b VARCHAR(50), paperno_b VARCHAR(50),
-    papercode_c VARCHAR(50), paperno_c VARCHAR(50),
-    papercode_d VARCHAR(50), paperno_d VARCHAR(50),
-    papercode_e VARCHAR(50), paperno_e VARCHAR(50),
-    papercode_f VARCHAR(50), paperno_f VARCHAR(50),
-    papercode_g VARCHAR(50), paperno_g VARCHAR(50),
-    papercode_h VARCHAR(50), paperno_h VARCHAR(50),
-    papercode_i VARCHAR(50), paperno_i VARCHAR(50),
-    papercode_j VARCHAR(50), paperno_j VARCHAR(50),
-    exampassed1 VARCHAR(100), board1 VARCHAR(100), year1 INT, roll_no1 VARCHAR(50), division1 VARCHAR(50), subject_taken1 TEXT,
-    exampassed2 VARCHAR(100), board2 VARCHAR(100), year2 INT, roll_no2 VARCHAR(50), division2 VARCHAR(50), subject_taken2 TEXT,
-    exampassed3 VARCHAR(100), board3 VARCHAR(100), year3 INT, roll_no3 VARCHAR(50), division3 VARCHAR(50), subject_taken3 TEXT,
-    exampassed4 VARCHAR(100), board4 VARCHAR(100), year4 INT, roll_no4 VARCHAR(50), division4 VARCHAR(50), subject_taken4 TEXT,
-    debarred_exam_name varchar(200),
-    debarred_year INT,
-    debarred_rollno VARCHAR(80),
-    debarred_board VARCHAR(100)
-);
-
-
 // table schema for student_details
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -88,14 +49,52 @@ CREATE TABLE student_details (
     course VARCHAR(100),
     mil VARCHAR(50),
     subject VARCHAR(100),
-    abc_id VARCHAR(50),
     registration_no VARCHAR(100),
     course_code VARCHAR(50),
     current_semester VARCHAR(50),
     roll_no VARCHAR(20) UNIQUE,
     user_id UUID,
     agree BOOLEAN,
+    pincode varchar(20),
+    admission_date DATE  
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+CREATE TABLE student_examinations (
+    examination_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    student_id UUID REFERENCES student_details(student_id) ON DELETE CASCADE,
+    application_for VARCHAR(100),
+    examination_session VARCHAR(50),
+    abc_id VARCHAR(50) UNIQUE,
+    registration_no VARCHAR(100) UNIQUE,
+    of_year VARCHAR(50),
+    roll_no VARCHAR(50) UNIQUE,
+    dept_code VARCHAR(50),
+    fathers_name VARCHAR(255),
+    guardian_name VARCHAR(255),
+    permanent_address TEXT,
+    course_code VARCHAR(50),
+    year_semester VARCHAR(50),
+    sex VARCHAR(10),
+    category VARCHAR(50),
+    papercode_a VARCHAR(50), paperno_a VARCHAR(50),
+    papercode_b VARCHAR(50), paperno_b VARCHAR(50),
+    papercode_c VARCHAR(50), paperno_c VARCHAR(50),
+    papercode_d VARCHAR(50), paperno_d VARCHAR(50),
+    papercode_e VARCHAR(50), paperno_e VARCHAR(50),
+    papercode_f VARCHAR(50), paperno_f VARCHAR(50),
+    papercode_g VARCHAR(50), paperno_g VARCHAR(50),
+    papercode_h VARCHAR(50), paperno_h VARCHAR(50),
+    papercode_i VARCHAR(50), paperno_i VARCHAR(50),
+    papercode_j VARCHAR(50), paperno_j VARCHAR(50),
+    exampassed1 VARCHAR(100), board1 VARCHAR(100), year1 INT, roll_no1 VARCHAR(50), division1 VARCHAR(50), subject_taken1 TEXT,
+    exampassed2 VARCHAR(100), board2 VARCHAR(100), year2 INT, roll_no2 VARCHAR(50), division2 VARCHAR(50), subject_taken2 TEXT,
+    exampassed3 VARCHAR(100), board3 VARCHAR(100), year3 INT, roll_no3 VARCHAR(50), division3 VARCHAR(50), subject_taken3 TEXT,
+    exampassed4 VARCHAR(100), board4 VARCHAR(100), year4 INT, roll_no4 VARCHAR(50), division4 VARCHAR(50), subject_taken4 TEXT,
+    debarred_exam_name varchar(200),
+    debarred_year INT,
+    debarred_rollno VARCHAR(80),
+    debarred_board VARCHAR(100)
 );
 
 // New students application_for
@@ -139,14 +138,16 @@ CREATE TABLE new_applications (
     subject VARCHAR(100),
     user_id UUID,
     status VARCHAR(20) DEFAULT 'pending',
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+    pincode varchar(20),
+    rejected_at TIMESTAMP   
 );
+
 ALTER TABLE new_applications
 ADD CONSTRAINT fk_user_id
 FOREIGN KEY (user_id)
 REFERENCES users(user_id)
-ON DELETE CASCADE
-ON UPDATE CASCADE;
+ON UPDATE CASCADE
+ON DELETE SET NULL;
 
 
 //file upload  table
@@ -186,8 +187,10 @@ role VARCHAR(100)NOT NULL DEFAULT 'staff',
 type varchar(100),
 phone_number VARCHAR(20),
 profile_picture TEXT,
-department_id UUID REFERENCES department(department_id) ON DELETE SET NULL     
 );
+
+
+
 CREATE TABLE department (
     department_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),           
     department_name VARCHAR(255) NOT NULL, 
@@ -201,8 +204,8 @@ CREATE TABLE department (
 //PAYMENTS TABLE
 CREATE TABLE payments (
     payment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),                        
-    student_id UUID REFERENCES student_details(student_id) ON DELETE SET NULL, 
-    application_id UUID REFERENCES new_applications(application_id) ON DELETE SET NULL, 
+    student_id UUID,
+    application_id, 
     amount DECIMAL(10, 2) NOT NULL,            
     payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
     payment_method VARCHAR(50),                
@@ -215,13 +218,26 @@ CREATE TABLE payments (
         (application_id IS NOT NULL AND student_id IS NULL)
     )
 );
+ALTER TABLE payments
+ADD CONSTRAINT fk_student_id, fk_application_id
+FOREIGN KEY (student_id) REFERENCES student_details(student_id) ON DELETE SET NULL,
+FOREIGN KEY (application_id) REFERENCES new_applications(application_id) ON DELETE SET NULL;
 
+ALTER TABLE payments
+ADD COLUMN notes TEXT;
+ALTER TABLE payments
+ADD COLUMN order_id VARCHAR(255) UNIQUE;
+
+CREATE INDEX idx_student_id ON payments(student_id);
+CREATE INDEX idx_application_id ON payments(application_id);
+CREATE INDEX idx_transaction_id ON payments(transaction_id);
+CREATE INDEX idx_fee_id ON payments(fee_id);
 
 
 CREATE TABLE academic_records (
     record_id       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id      UUID NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
-    semester_id     UUID NOT NULL REFERENCES semester(semester_id) ON DELETE CASCADE,
+    student_id      UUID NOT NULL,
+    semester_id     UUID NOT NULL, 
     subject         VARCHAR(100) NOT NULL,
     grade           CHAR(1) NOT NULL,
     marks           NUMERIC(5, 2) NOT NULL,
@@ -234,12 +250,15 @@ CREATE TABLE academic_records (
     updated_at      TIMESTAMP DEFAULT NOW()
 );
 
-
+ALTER TABLE academic_records
+ADD CONSTRAINT fk_student_id, fk_semester_id
+FOREIGN KEY (student_id) REFERENCES students(student_id) ON UPDATE CASCADE ON DELETE CASCADE,
+FOREIGN KEY (semester_id) REFERENCES semester(semester_id) ON DELETE CASCADE ON UPDATE CASCADE;
 
 
 CREATE TABLE attendance (
     attendance_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),         
-    student_id UUID REFERENCES student_details(student_id) ON DELETE CASCADE,           
+    student_id UUID REFERENCES student_details(student_id) ON DELETE CASCADE ON UPDATE CASCADE,           
     date DATE NOT NULL,                        
     subject_code VARCHAR(50),                  
     status VARCHAR(150), 
@@ -251,7 +270,7 @@ CREATE TABLE attendance (
 
 CREATE TABLE library (
     borrow_id SERIAL PRIMARY KEY,              
-    aadhaar_no VARCHAR(12) NOT NULL,            
+    student_id VARCHAR(12) NOT NULL,            
     book_id VARCHAR(50) NOT NULL,               
     book_title VARCHAR(255) NOT NULL,           
     borrow_date DATE NOT NULL,                  
@@ -260,9 +279,14 @@ CREATE TABLE library (
     fine DECIMAL(5, 2) DEFAULT 0.00,            
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    FOREIGN KEY (aadhaar_no) REFERENCES student_details(aadhaar_no) 
-);
 
+);
+ALTER TABLE library
+ADD CONSTRAINT fk_student_id
+FOREIGN KEY (student_id)
+REFERENCES student_details(student_id)
+ON DELETE CASCADE
+ON UPDATE CASCADE;
 
 -- Table to store static semester values
 CREATE TABLE semester (
@@ -281,6 +305,7 @@ CREATE TABLE semester_records (
     remarks TEXT,
     FOREIGN KEY (semester_id) REFERENCES semester(semester_id) ON DELETE CASCADE
 );
+
 
 -- Example: Inserting data for a student with multiple subjects in the same semester
 INSERT INTO semester_records (student_id, semester_id, subject, grade, marks, remarks)
@@ -354,7 +379,7 @@ CREATE TABLE graduation_logs (
     student_id UUID NOT NULL,
     full_name VARCHAR(150) NOT NULL,
     program VARCHAR(100),
-    graduated_by UUID NOT NULL, -- Admin/Staff who performed the action
+    graduated_by UUID NOT NULL,
     graduation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(50) DEFAULT 'moved_to_alumni',
     restored_at TIMESTAMP,
@@ -400,3 +425,114 @@ ON graduation_logs
 FOR EACH ROW
 WHEN (NEW.status = 'restored')
 EXECUTE FUNCTION restore_student_from_alumni();
+
+
+//Prices
+
+CREATE TABLE fee_pricing (
+    id SERIAL PRIMARY KEY,
+    payment_type VARCHAR(50) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'INR', 
+    stream text,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+CREATE TABLE faculty_academic_records (
+    record_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    faculty_id UUID NOT NULL,
+    number_of_journal_publications INT DEFAULT 0,
+    number_of_books_published INT DEFAULT 0,
+    number_of_books_edited INT DEFAULT 0,
+    number_of_seminars_attended INT DEFAULT 0,
+    number_of_papers_presented INT DEFAULT 0,
+    committee_participation TEXT,
+    academic_qualification TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE faculty_academic_records
+ADD CONSTRAINT fk_faculty
+FOREIGN KEY (faculty_id)
+REFERENCES faculty (faculty_id)
+ON DELETE CASCADE
+ON UPDATE CASCADE;
+
+
+ALTER TABLE faculty_academic_record
+ADD CONSTRAINT fk_faculty
+FOREIGN KEY (faculty_id)
+REFERENCES faculty (faculty_id)
+ON DELETE CASCADE
+ON UPDATE CASCADE;
+
+
+create table committee (
+    committee_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    committee_name VARCHAR(200),
+    role_in_committee VARCHAR(200),
+    committee_type VARCHAR(200),
+    committee_description TEXT,
+    faculty_id UUID,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+ALTER TABLE committee
+ADD CONSTRAINT fk_faculty
+FOREIGN KEY (faculty_id)
+REFERENCES faculty (faculty_id)
+ON DELETE SET NULL
+ON UPDATE CASCADE;
+
+CREATE TYPE status_enum AS ENUM ('Pass', 'Fail');
+
+CREATE TABLE exam_results (
+    result_id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    program VARCHAR(255) NOT NULL,
+    semester VARCHAR(50) NOT NULL,
+    status status_enum NOT NULL
+);
+
+//CORS Configuration
+const corsOptions = {
+  origin: [process.env.FRONTEND_URL || "http://192.168.1.23:9000"||"http://localhost:5173"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+};
+app.use(cors(corsOptions)); 
+
+// Trigger to delete rejected applications older than 15 days
+
+//3. Create a Scheduled Job to Delete Old Records
+//Use pg_cron or an external scheduler to periodically delete records older than 15 days with the status "rejected".
+
+//Install pg_cron (if not already available)
+//Follow the installation guide for your PostgreSQL version and OS. Once installed, add the extension to your database:
+
+CREATE EXTENSION pg_cron;
+//Schedule the Cleanup Job
+//Create a scheduled job to run daily and delete records older than 15 days.
+
+SELECT cron.schedule(
+  'delete_rejected_applications',  -- Job name
+  '0 0 * * *',                    -- Schedule: daily at midnight
+  $$ DELETE FROM student_details
+     WHERE status = 'rejected'
+       AND rejected_at < NOW() - INTERVAL '30 days'; $$
+);
+
+//Trigger to delete accepted applications older than 30 days
+
+SELECT cron.schedule(
+  'delete_accepted_applications',  -- Job name
+  '0 0 * * *',                    -- Schedule: daily at midnight
+  $$ DELETE FROM student_details
+     WHERE status = 'accepted'
+       AND rejected_at < NOW() - INTERVAL '30 days'; $$
+);

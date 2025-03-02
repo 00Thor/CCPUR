@@ -23,7 +23,7 @@ const authenticateUser = async (req, res, next) => {
         const user = userResult.rows[0];
 
         // Attach user details to request
-        req.user = { id: user.user_id, role: user.role };
+        req.user = { id: user.user_id, role: user.role, email: decoded.email };
         next();
     } catch (error) {
         console.error("JWT Error:", error);

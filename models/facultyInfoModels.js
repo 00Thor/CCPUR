@@ -106,6 +106,17 @@ const updateStaffById = async (staffId, updatedFields) => {
     }
 };
 
+//get staff by id
+const getFacultyById = async (staffId) => {
+    try {
+        const result = await pool.query('SELECT * FROM faculty WHERE faculty_id = $1', [staffId]);
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error fetching staff:', error.message);
+        throw new Error(error.message);
+    }
+};
+
 module.exports = {
     teachingStaff,
     nonTeachingStaff,
@@ -113,4 +124,5 @@ module.exports = {
     getStaff,
     deleteStaffDetails,
     updateStaffById,
+    getFacultyById
 };

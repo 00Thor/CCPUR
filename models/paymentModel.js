@@ -1,67 +1,76 @@
-// models/paymentModel.js
-const pool = require('../config/db'); // Assuming you have a pool setup with pg
+const pool = require("../config/db");
 
-// Insert payment into the database
-const insertPayment = async (paymentDetails) => {
-  const { student_id, application_id, amount, payment_method, transaction_id } = paymentDetails;
-  const client = await pool.connect();
+/**
+ * Get a payment record by Razorpay order ID.
+ * @param {string} razorpay_order_id - The Razorpay order ID.
+ * @returns {Promise<Object|null>} The payment record, or null if not found.
+ */
 
-  try {
-    const result = await client.query(`
-      INSERT INTO payments (student_id, application_id, amount, payment_method, transaction_id)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *;
-    `, [student_id, application_id, amount, payment_method, transaction_id]);
-
-    console.log('✅ Payment inserted:', result.rows[0]);
-    return result.rows[0]; // Return the inserted payment record
-  } catch (error) {
-    console.error('❌ Error inserting payment:', error);
-    throw error;
-  } finally {
-    client.release();
+// Insert a new payment record in the database(on success)
+  const insertIntoPayment = async (paymentData) => {
+  if (!paymentData.student_id && !paymentData.application_id) {
+    throw new Error("Either student_id or application_id must be provided.");
   }
+
+  const query = `
+    INSERT INTO payments (
+      student_id, application_id, amount, payment_method, payment_status, 
+      transaction_id, payment_type
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING *;
+  `;
+  const values = [
+    paymentData.student_id || null, // Use null if student_id is not provided
+    paymentData.application_id || null, // Use null if application_id is not provided
+    paymentData.amount,
+    paymentData.payment_method,
+    paymentData.payment_status || "Pending",
+    paymentData.transaction_id,
+    paymentData.payment_type,
+  ];
+
+  const result = await pool.query(query, values);
+  return result.rows[0];
 };
 
-// Get payments by student ID
-const getPaymentsByStudentId = async (student_id) => {
-  const client = await pool.connect();
+const getPaymentByOrderId = async (razorpay_order_id) => {
   try {
-    const result = await client.query(`
-      SELECT * FROM payments WHERE student_id = $1;
-    `, [student_id]);
-
-    return result.rows; // Return payments for the student
+    const query = "SELECT * FROM payments WHERE razorpay_order_id = $1";
+    const result = await pool.query(query, [razorpay_order_id]);
+    return result.rows[0] || null;
   } catch (error) {
-    console.error('❌ Error fetching payments:', error);
+    console.error("Error fetching payment by order ID:", error.message);
     throw error;
-  } finally {
-    client.release();
   }
 };
 
 // Update payment status
-const updatePaymentStatus = async (payment_id, status) => {
-  const client = await pool.connect();
-  try {
-    const result = await client.query(`
-      UPDATE payments
-      SET payment_status = $1, updated_at = NOW()
-      WHERE payment_id = $2
-      RETURNING *;
-    `, [status, payment_id]);
+const updatePaymentsStatus = async (paymentId, status, transactionId) => {
+  const query = `
+   UPDATE payments
+SET 
+    payment_status = $1,
+    transaction_id = $2,
+    payment_m = 'offline',
+    updated_at = CURRENT_TIMESTAMP
+WHERE 
+    applicant_id = $3 OR student_id = $3
+RETURNING *;
+  `;
+  const result = await pool.query(query, [status, transactionId, paymentId]);
+  return result.rows[0];
+};
 
-    return result.rows[0]; // Return the updated payment record
-  } catch (error) {
-    console.error('❌ Error updating payment status:', error);
-    throw error;
-  } finally {
-    client.release();
-  }
+// List all payments
+const listAllPayments = async () => {
+  const query = "SELECT * FROM payments ORDER BY created_at DESC;";
+  const result = await pool.query(query);
+  return result.rows;
 };
 
 module.exports = {
-  insertPayment,
-  getPaymentsByStudentId,
-  updatePaymentStatus,
+  insertIntoPayment,
+  getPaymentByOrderId,
+  updatePaymentsStatus,
+  listAllPayments,
 };
