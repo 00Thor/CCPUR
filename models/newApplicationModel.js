@@ -48,6 +48,7 @@ const newStudentDetails = async (studentData) => {
   }
 };
 
+// Approve student insert to student table
 
 const approvedStd = async (approvedStudents) => {
   try {

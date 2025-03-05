@@ -14,8 +14,8 @@ router.get("/getfiles/:user_id", authenticateUser, authorizeRoles("student", "st
 
   // Securely retrieve a specific file by user ID and filename(get the actual file images to be viewed)
   router.get(
-    "/secure-getfiles/:user_id", authenticateUser,
-    authorizeRoles("student", "staff", "admin"),
+    "/secure-getfiles/:user_id", /*authenticateUser,
+    authorizeRoles("student", "staff", "admin"),*/
     getSecureFiles
   );
 

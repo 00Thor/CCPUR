@@ -24,7 +24,7 @@ const pool = require("../config/db");
     paymentData.application_id || null, // Use null if application_id is not provided
     paymentData.amount,
     paymentData.payment_method,
-    paymentData.payment_status || "Pending",
+    paymentData.payment_status,
     paymentData.transaction_id,
     paymentData.payment_type,
   ];
@@ -33,16 +33,16 @@ const pool = require("../config/db");
   return result.rows[0];
 };
 
-const getPaymentByOrderId = async (razorpay_order_id) => {
-  try {
-    const query = "SELECT * FROM payments WHERE razorpay_order_id = $1";
-    const result = await pool.query(query, [razorpay_order_id]);
-    return result.rows[0] || null;
-  } catch (error) {
-    console.error("Error fetching payment by order ID:", error.message);
-    throw error;
-  }
+const getPaymentByApplicationId = async (application_id) => {
+  const query = `
+    SELECT * FROM payments WHERE application_id = $1
+  `;
+  const values = [application_id];
+
+  const result = await pool.query(query, values);
+  return result.rows[0]; // Assuming a single payment record per application
 };
+
 
 // Update payment status
 const updatePaymentsStatus = async (paymentId, status, transactionId) => {
@@ -61,6 +61,26 @@ RETURNING *;
   return result.rows[0];
 };
 
+const insertStudentId = async (paymentData) => {
+  const query = `
+    INSERT INTO payments (
+      student_id, application_id, payment_status
+    ) VALUES ($1, $2, $3)
+    RETURNING *;
+  `;
+
+  const values = [
+    paymentData.student_id || null, // Use null if student_id is not provided
+    paymentData.application_id, // application_id must be provided here
+    paymentData.payment_status || "Pending", // Default to "Pending" if not provided
+  ];
+
+  const result = await pool.query(query, values);
+  return result.rows[0];
+};
+
+
+
 // List all payments
 const listAllPayments = async () => {
   const query = "SELECT * FROM payments ORDER BY created_at DESC;";
@@ -70,7 +90,8 @@ const listAllPayments = async () => {
 
 module.exports = {
   insertIntoPayment,
-  getPaymentByOrderId,
+  getPaymentByApplicationId,
   updatePaymentsStatus,
   listAllPayments,
+  insertStudentId
 };

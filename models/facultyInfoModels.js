@@ -38,20 +38,24 @@ const nonTeachingStaff = async () => {
 };
 
 // Get all faculty/staff with optional filters and pagination
+
 async function getStaff(filters, limit, offset) {
     let query = 'SELECT * FROM faculty WHERE 1=1';
     let values = [];
     let count = 1;
 
+    // Add filters dynamically
     Object.keys(filters).forEach((key) => {
         query += ` AND ${key} = $${count}`;
         values.push(filters[key]);
         count++;
     });
 
+    // Add pagination
     query += ` LIMIT $${count} OFFSET $${count + 1}`;
     values.push(limit, offset);
 
+    // Execute the query
     return pool.query(query, values);
 }
 

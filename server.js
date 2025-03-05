@@ -4,8 +4,9 @@ const helmet = require("helmet");
 const router = require("./routes/mainRouter");
 const http = require("http");
 const { setupWebSocket } = require("./controller/websocket");
-const webhookRoute = require("./routes/webhookRoute");
 require("dotenv").config();
+const path = require("path");
+
 
 const app = express();
 const server = http.createServer(app);
@@ -22,20 +23,12 @@ app.use(
   })
 );
 
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 // Body parsers for API routes
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Webhook route (must use raw middleware)
-app.use(
-  "/razorpay/webhook",
-  express.raw({ type: "application/json" }), // Important for Razorpay webhook signature verification
-  (req, res, next) => {
-    // Skip Helmet for this route
-    next();
-  }, 
-  webhookRoute
-);
+app.use(express.urlencoded({ extended: true }));
 
 // Rate limiter (optional, uncomment if needed)
 /*

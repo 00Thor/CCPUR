@@ -17,55 +17,80 @@ const transporter = nodemailer.createTransport({
 //Fetch all pending applications
 const getPendingApplications = async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM new_applications WHERE status = 'pending'");
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Error fetching pending applications:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};
+    const query = `
+      SELECT 
+          na.*, 
+          p.payment_status
+      FROM 
+          new_applications na
+      LEFT JOIN 
+          payments p
+      ON 
+          na.application_id = p.application_id
+      WHERE 
+          na.status = 'pending';
+    `;
 
-//Fetch all pending applications
-const getApprovedApplications = async (req, res) => {
-  try {
-    const result = await pool.query("SELECT * FROM new_applications WHERE status = 'approved'");
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Error fetching pending applications:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};
+    console.log("Fetching all pending applications");
 
-// Fetch a single application by user_id and application_id
-const getSingleApplication = async (req, res) => {
-  try {
-    const user_id = req.user?.id; // Extract user_id from middleware
-  
-    if (!user_id) {
-      return res.status(400).json({ error: "User ID is required" });
-    }
-
-    let query = "SELECT * FROM new_applications WHERE user_id = $1";
-    const queryParams = [user_id];
-
-    console.log("Fetching applications for user_id:", user_id);
-    
-    const result = await pool.query(query, queryParams);
+    const result = await pool.query(query);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: "No applications found for this user" });
+      return res.status(200).json([]);
     }
 
-    res.json(result.rows[0]); // Return application data
+    res.json(result.rows); // Return all pending applications with payment_status
+  } catch (error) {
+    console.error("Error fetching pending applications:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// Fetch a single application by application_id
+
+const getSingleApplication = async (req, res) => {
+  try {
+    const { user_id } = req.params; // Extract user_id from request params
+  
+    if (!user_id) {
+      return res.status(400).json({ error: "User ID is missing in params" });
+    }
+  
+    // Query to fetch all details from new_applications and amount from fee_pricing
+    const query = `
+      SELECT 
+        na.*, 
+        fp.amount
+      FROM 
+        new_applications na
+      INNER JOIN 
+        fee_pricing fp 
+      ON 
+        na.course = fp.course
+      WHERE 
+        na.user_id = $1
+    `;
+  
+    const queryParams = [user_id];
+  
+    //console.log("Fetching application details for user_id:", user_id);
+  
+    const result = await pool.query(query, queryParams);
+  
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Application not found" });
+    }
+  
+    res.json(result.rows[0]); // Return all details from new_applications and the amount
   } catch (error) {
     console.error("Error fetching application details:", error.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
-};
-
-
+}
 // Approve Applicant & Copy to Students Table
+
 const approveApplicant = async (req, res) => {
+
   const { application_id } = req.params;
   const client = await pool.connect();
   console.log("Received application_id:", req.params.application_id);
@@ -107,11 +132,11 @@ const approveApplicant = async (req, res) => {
       from: `"College Admin" <${process.env.EMAIL_USER}>`,
       to: applicant.email,
       subject: "Application Approved For CCPUR COLLEGE",
-      html: `<p>Congratulations! Your application has been approved. You are now enrolled in ${applicant.program} at CCPUR COLLEGE.</p>`,
+      html: `<p>Congratulations! Your application has been approved. You are now enrolled in ${applicant.course} at CCPUR COLLEGE.</p>`,
     });
 
     res.status(200).json({
-      message: "Applicant approved and copied to student_details",
+      message: "Application approved",
       student: studentData, // Return the inserted student data
     });
 
@@ -163,13 +188,44 @@ const rejectApplication = async (req, res) => {
     });
 
     // Send a success response
-    res.status(200).json({ message: "Application rejected successfully." });
+    res.status(200).json({ message: "Application rejected." });
   } catch (error) {
     console.error("Error rejecting application:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
+//Fetch all Approved applications
+const getApprovedApplications = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+          na.*, 
+          p.payment_status
+      FROM 
+          new_applications na
+      LEFT JOIN 
+          payments p
+      ON 
+          na.application_id = p.application_id
+      WHERE 
+          na.status = 'approved';
+    `;
+
+    console.log("Fetching all approved applications");
+
+    const result = await pool.query(query);
+
+    if (result.rows.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    res.json(result.rows); // Return all pending applications with payment_status
+  } catch (error) {
+    console.error("Error fetching approved applications:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 
 /*  ---------------- 2nd & 3rd YEAR APPLICATION (YEARLY) ----------------------   */
 
@@ -224,4 +280,4 @@ const approveYearlyApplication = async (req, res) => {
 
 module.exports = { getPendingApplications, approveApplicant, 
   rejectApplication, getSingleApplication,
-  getApprovedApplications, approveYearlyApplication};
+ getApprovedApplications, approveYearlyApplication};

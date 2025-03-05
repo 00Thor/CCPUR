@@ -32,14 +32,6 @@ const newUser = async (req, res) => {
     if (!newUser) {
       return res.status(500).json({ message: "Error creating user" });
     }
-
-    // Insert student details for the new user
-    const studentDetailsResult = await pool.query("INSERT INTO student_details (user_id) VALUES ($1)", [newUser.id]);
-    if (!studentDetailsResult) {
-      console.error("Error inserting student details for user ID:", newUser.id);
-      return res.status(500).json({ message: "Error inserting student details" });
-    }
-
     console.log("User registered successfully:", newUser);
 
     return res.status(201).json({
@@ -115,7 +107,7 @@ const forgotpassword = async (req, res) => {
 
     // Generate reset token (expires in 1 hour)
     const resetToken = jwt.sign(
-      { email: user.email },
+      { email: user.email },  
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );

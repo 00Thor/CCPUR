@@ -111,13 +111,6 @@ const getFilesByUserId = async (req, res) => {
 const getSecureFiles = async (req, res) => {
   try {
     const { user_id } = req.params;
-    const requestingUserId = req.user.id;
-    const userRole = req.user.role;
-
-    // Validate user access
-    if (userRole !== "admin" && userRole !== "staff" && requestingUserId !== user_id) {
-      return res.status(403).json({ error: "Access denied: You can only access your own files" });
-    }
 
     // Fetch file paths from the database
     const query = `
@@ -131,26 +124,34 @@ const getSecureFiles = async (req, res) => {
       return res.status(404).json({ error: "Files not found for the given user" });
     }
 
-    const { passport, signature, tribe, xadmitcard, xiiadmitcard, xiimarksheet, xmarksheet, migration } = fileResult.rows[0];
+    const {
+      passport,
+      signature,
+      tribe,
+      xadmitcard,
+      xiiadmitcard,
+      xmarksheet,
+      xiimarksheet,
+      migration,
+    } = fileResult.rows[0];
 
     // Construct file paths
     const filePaths = {
-      passport_path: passport ? path.join(__dirname, "..", passport) : null,
-      signature_path: signature ? path.join(__dirname, "..", signature) : null,
-      tribe_path: tribe ? path.join(__dirname, "..", tribe) : null,
-      xadmitcard_path: xadmitcard ? path.join(__dirname, "..", xadmitcard) : null,
-      xiiadmitcard_path: xiiadmitcard ? path.join(__dirname, "..", xiiadmitcard) : null,
-      xmarksheet_path: xmarksheet ? path.join(__dirname, "..", xmarksheet) : null,
-      xiimarksheet_path: xiimarksheet ? path.join(__dirname, "..", xiimarksheet) : null,
-      migration_path: migration ? path.join(__dirname, "..", migration) : null,
-      
+      passport_path: passport ? path.join(__dirname, "..", "uploads", passport) : null,
+      signature_path: signature ? path.join(__dirname, "..", "uploads", signature) : null,
+      tribe_path: tribe ? path.join(__dirname, "..", "uploads", tribe) : null,
+      xadmitcard_path: xadmitcard ? path.join(__dirname, "..", "uploads", xadmitcard) : null,
+      xiiadmitcard_path: xiiadmitcard ? path.join(__dirname, "..", "uploads", xiiadmitcard) : null,
+      xmarksheet_path: xmarksheet ? path.join(__dirname, "..", "uploads", xmarksheet) : null,
+      xiimarksheet_path: xiimarksheet ? path.join(__dirname, "..", "uploads", xiimarksheet) : null,
+      migration_path: migration ? path.join(__dirname, "..", "uploads", migration) : null,
     };
 
-    // Check file existence and generate URLs
+    // Check if files exist and generate URLs
     const files = {};
     for (const [key, filePath] of Object.entries(filePaths)) {
       if (filePath && fs.existsSync(filePath)) {
-        files[key.replace("_path", "_url")] = `/uploads/${path.basename(filePath)}`;
+        files[key.replace("_path", "_url")] = `uploads/${path.basename(filePath)}`;
       }
     }
 

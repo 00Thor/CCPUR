@@ -8,6 +8,7 @@ const examinationRoutes = require("./examinationRoutes");
 const facultyAdminRoutes = require("./facultyAdminRoutes");
 const fileUploadRoutes = require("./fileUploadRoutes");
 const paymentRoutes = require("./paymentRoutes");
+const statisticsRoutes  = require("./statisticsRoute")
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.use("/examination", examinationRoutes);
 router.use("/facultyAdmin", facultyAdminRoutes);
 router.use("/fileupload", fileUploadRoutes);
 router.use("/payments", paymentRoutes);
+router.use("/statistics", statisticsRoutes);
 
 module.exports = router;

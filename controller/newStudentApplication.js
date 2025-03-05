@@ -1,6 +1,7 @@
 const pool = require("../config/db");
 const { newStudentDetails } = require("../models/newApplicationModel");
 const { studentFilesUpload } = require("../controller/fileUploadController");
+const { insertStudentId } = require("../models/paymentModel");
 
 const newStudentApplication = async (req, res) => {
   let client;
@@ -9,6 +10,7 @@ const newStudentApplication = async (req, res) => {
     await client.query("BEGIN");
 
     const studentData = req.body;
+
     const requiredFields = [
       "session", "full_name", "date_of_birth", "aadhaar_no", "gender", "category",
       "nationality", "religion", "name_of_community", "contact_no", "blood_group",
@@ -27,16 +29,45 @@ const newStudentApplication = async (req, res) => {
     const userQuery = "SELECT user_id FROM users WHERE email = $1";
     const userResult = await client.query(userQuery, [studentData.email]);
     if (userResult.rowCount === 0) {
-      return res.status(404).json({ error: "User not found." });
+      return res.status(404).json({ error: "Email must match with the registered email." });
     }
 
     const userId = userResult.rows[0].user_id;
+
+    // Check for existing user_id, email, or aadhaar_no in new_applications table
+    const conflictQuery = `
+      SELECT * FROM new_applications
+      WHERE user_id = $1 OR email = $2 OR aadhaar_no = $3
+    `;
+    const conflictResult = await client.query(conflictQuery, [userId, studentData.email, studentData.aadhaar_no]);
+    if (conflictResult.rowCount > 0) {
+      const conflictingRow = conflictResult.rows[0];
+
+      let conflictMessage = "An application already exists with the provided ";
+      if (conflictingRow.user_id === userId) {
+        conflictMessage += "User ID.";
+      } else if (conflictingRow.email === studentData.email) {
+        conflictMessage += "Email.";
+      } else if (conflictingRow.aadhaar_no === studentData.aadhaar_no) {
+        conflictMessage += "Aadhaar number.";
+      }
+
+      return res.status(409).json({ error: conflictMessage });
+    }
+
     const applicantResult = await newStudentDetails({ ...studentData, user_id: userId });
     const applicantId = applicantResult?.application_id;
 
     if (!applicantId) {
       return res.status(500).json({ error: "Failed to insert student details." });
     }
+
+    // Insert into payments table
+    const paymentData = {
+      student_id: studentData.student_id || null,
+      application_id: applicantId
+    };
+    await insertStudentId(paymentData);
 
     req.body.user_id = userId;
     req.body.applicant_id = applicantId;

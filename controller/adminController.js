@@ -1,4 +1,4 @@
-const { getStudents, getStaff, updateStudentById, deletingStudent, getLatestAdmittedStudents} = require('../models/adminModels');
+const { getStudents, updateStudentById, deletingStudent, getLatestAdmittedStudents} = require('../models/adminModels');
 const pool = require('../config/db'); // Import the pool
 
 
@@ -26,18 +26,20 @@ async function getAllStudentsDetails(req, res) {
   }
 }
 
-
-// Get staff details with pagination
-async function getStaffDetails(req, res) {
+// Get all faculty/staff details
+const getStaffDetails = async (req, res) => {
     try {
-        const { page = 1, limit = 5, ...filters } = req.query;
-        const offset = (page - 1) * limit;
-        const result = await getStaff(filters, limit, offset);
+        // Query to fetch all records
+        const query = 'SELECT * FROM faculty';
+        const result = await pool.query(query);
+
+        // Return all rows
         res.json(result.rows);
     } catch (error) {
+        console.error("Error fetching staff details:", error.message);
         res.status(500).json({ error: error.message });
     }
-}
+};
 
 // Delete Student by Roll Number or Aadhaar Number
 const deleteStudent = async (req, res) => {
@@ -143,4 +145,6 @@ const getLatestStudents = async (req, res) => {
 
 
 
-module.exports = { getStudentsDetails, getAllStudentsDetails, getStaffDetails, deleteStudent, updateStudent, approveApplicant, rejectApplicant, getLatestStudents};
+module.exports = { getStudentsDetails, getAllStudentsDetails, 
+    getStaffDetails, deleteStudent, updateStudent,
+     approveApplicant, rejectApplicant, getLatestStudents};

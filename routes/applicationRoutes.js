@@ -38,16 +38,13 @@ router.get(
   getPendingApplications
 );
 
-// Route to fetch all pending applications (admin only)
-router.get(
-  "/getApprovedApplications",
-  getApprovedApplications
-);
+//Route to fetch all pending applications (admin only)
+router.get("/getApprovedApplications", getApprovedApplications);
 
 
 // Route to fetch a single application (admin only)
 router.get(
-  "/getSingleApplications/:user_id", authenticateUser,
+  "/getSingleApplication/:user_id",
   getSingleApplication
 );
 
@@ -59,7 +56,7 @@ router.put(
 
 // Route to reject a new student application (admin only)
 router.put(
-  "/rejectApplication",
+  "/rejectApplication/:application_id",
   rejectApplication
 );
 

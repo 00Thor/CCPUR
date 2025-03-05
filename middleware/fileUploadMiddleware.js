@@ -15,12 +15,10 @@ const ensureDirectoryExists = (dirPath) => {
 };
 
 // Directories
-const tempDir = path.resolve("./temp"); // Temporary storage directory
 const uploadDir = path.resolve("./uploads");
 const facultyPhotoDir = path.resolve("./uploads/facultyPhoto");
 
 // Ensure required directories exist
-ensureDirectoryExists(tempDir);
 ensureDirectoryExists(uploadDir);
 ensureDirectoryExists(facultyPhotoDir);
 
@@ -39,31 +37,10 @@ const generateFileName = (file) => {
   return `${Date.now()}-${file.originalname.replace(/\s+/g, "_")}`;
 };
 
-// Cleanup function to delete temporary files
-const cleanupTempFiles = (files) => {
-  if (!files || typeof files !== "object") {
-    return;
-  }
-
-  try {
-    Object.keys(files).forEach((field) => {
-      files[field].forEach((file) => {
-        const tempPath = file.path;
-        if (fs.existsSync(tempPath)) {
-          fs.unlinkSync(tempPath);
-        }
-      });
-    });
-  } catch (err) {
-    // Do nothing, as cleanup failures shouldn't block other operations.
-  }
-};
-
-
-// Temporary storage configuration for student uploads
-const studentTempStorage = multer.diskStorage({
+// Storage configuration for student uploads
+const studentStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, tempDir); // Store files in the temporary directory
+    cb(null, uploadDir); // Store files directly in the uploads directory
   },
   filename: (req, file, cb) => {
     cb(null, generateFileName(file)); // Generate unique filenames
@@ -71,7 +48,7 @@ const studentTempStorage = multer.diskStorage({
 });
 
 const studentFileUploadMiddleware = multer({
-  storage: studentTempStorage,
+  storage: studentStorage,
   limits: { fileSize: 1 * 1024 * 1024 }, // Limit file size to 1 MB
   fileFilter,
 }).fields([
@@ -85,10 +62,10 @@ const studentFileUploadMiddleware = multer({
   { name: "tribe", maxCount: 1 },
 ]);
 
-// Faculty Multer configuration
-const facultyTempStorage = multer.diskStorage({
+// Faculty storage configuration
+const facultyStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, tempDir); // Store files temporarily
+    cb(null, facultyPhotoDir); // Store faculty photos in their specific folder
   },
   filename: (req, file, cb) => {
     cb(null, generateFileName(file)); // Generate unique filenames
@@ -96,40 +73,10 @@ const facultyTempStorage = multer.diskStorage({
 });
 
 const uploadFacultyPhotoMiddleware = multer({
-  storage: facultyTempStorage,
+  storage: facultyStorage,
   limits: { fileSize: 1 * 1024 * 1024 }, // Limit file size to 1 MB
   fileFilter,
 }).single("faculty_picture");
-
-
-// Helper to move files from temporary to final directory
-const finalizeUploads = (files, targetDir) => {
-  if (!files || typeof files !== "object") {
-    return {};
-  }
-
-  const finalizedPaths = {};
-
-  try {
-    Object.keys(files).forEach((field) => {
-      finalizedPaths[field] = [];
-      files[field].forEach((file) => {
-        const tempPath = file.path;
-        const finalPath = path.join(targetDir, file.filename);
-
-        if (fs.existsSync(tempPath)) {
-          fs.renameSync(tempPath, finalPath);
-          finalizedPaths[field].push(finalPath);
-        }
-      });
-    });
-
-    return finalizedPaths;
-  } catch (err) {
-    throw new Error("Failed to finalize file uploads.");
-  }
-};
-
 
 // Middleware to handle file filter errors gracefully
 const handleFileErrors = (err, req, res, next) => {
@@ -145,7 +92,5 @@ const handleFileErrors = (err, req, res, next) => {
 module.exports = { 
   studentFileUploadMiddleware, 
   uploadFacultyPhotoMiddleware, 
-  handleFileErrors, 
-  cleanupTempFiles, 
-  finalizeUploads 
+  handleFileErrors 
 };
