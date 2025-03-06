@@ -16,14 +16,14 @@ router.post("/createPayment", createPaymentOrder);
 router.get("/getPayment/:application_id", getPayments);
 
 // Update payment status
-router.patch("/updatePayment/:id/status", updatePaymentStatus);
+router.put("/updatePayment/:id/status", updatePaymentStatus);
 
 
 // List all payments
 router.get("/listAllPayments", listPayments);
 
 // Frontend verification route
-router.post('/verifyFrontEndPayment', 
+router.post('/verifyPayment', 
     verifyAndInsertPayment
   );
 

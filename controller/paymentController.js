@@ -1,8 +1,9 @@
 const {
-  insertIntoPayment,
+  updatePayment,
   getPaymentByApplicationId,
-  updatePaymentsStatus,
+  updatePaymentsStatusOffline,
   listAllPayments,
+  insertPayment,
 } = require("../models/paymentModel");
 const { createRazorpayInstance } = require("../config/paymentConfig");
 const crypto = require("crypto");
@@ -70,19 +71,24 @@ const createPaymentOrder = async (req, res) => {
   }
 };
 
-// Verify and insert payment manually
+// Verify, update, or insert payment manually
+
 const verifyAndInsertPayment = async (req, res) => {
   try {
     const { razorpay_payment_id, razorpay_order_id } = req.body;
 
     if (!razorpay_payment_id || !razorpay_order_id) {
-      return res.status(400).json({ error: "Payment ID and Order ID are required." });
+      return res
+        .status(400)
+        .json({ error: "Payment ID and Order ID are required." });
     }
 
     const razorpayInstance = createRazorpayInstance();
 
     // Fetch payment details from Razorpay
-    const paymentDetails = await razorpayInstance.payments.fetch(razorpay_payment_id);
+    const paymentDetails = await razorpayInstance.payments.fetch(
+      razorpay_payment_id
+    );
 
     if (paymentDetails.order_id !== razorpay_order_id) {
       return res.status(400).json({ error: "Order ID mismatch." });
@@ -92,7 +98,6 @@ const verifyAndInsertPayment = async (req, res) => {
       return res.status(400).json({ error: "Payment is not captured." });
     }
 
-    // Prepare payment data for insertion
     const {
       id: transaction_id,
       order_id,
@@ -103,7 +108,8 @@ const verifyAndInsertPayment = async (req, res) => {
 
     if (!notes || (!notes.student_id && !notes.application_id)) {
       return res.status(400).json({
-        error: "Either 'student_id' or 'application_id' must be present in notes.",
+        error:
+          "Either 'student_id' or 'application_id' must be present in notes.",
       });
     }
 
@@ -119,19 +125,32 @@ const verifyAndInsertPayment = async (req, res) => {
       notes,
     };
 
-    // Insert into the database
-    await insertIntoPayment(paymentData);
-    console.log('payment verification and insertion into DB successful');
+    // Check if a payment record already exists
+    const existingPayment = await pool.query(
+      `SELECT * FROM payments WHERE student_id = $1 OR application_id = $2`,
+      [paymentData.student_id || null, paymentData.application_id || null]
+    );
+
+    let updatedPayments;
+    if (existingPayment.rows.length > 0) {
+      updatedPayments = await updatePayment(paymentData);
+      console.log("Payment record updated successfully.");
+    } else {
+      updatedPayments = await insertPayment(paymentData);
+      console.log("Payment record inserted successfully.");
+    }
+    // Include payment_method and razorpay_order_id in the response
     res.status(200).json({
       message: "Payment verified and saved successfully.",
-      paymentData,
+      paymentData: updatedPayments,
+      payment_method: paymentData.payment_method, // Include payment method
+      razorpay_order_id: paymentData.razorpay_order_id, // Include Razorpay order ID
     });
   } catch (error) {
-    console.error("Error verifying and inserting payment:", error);
+    console.error("Error verifying and updating payment:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
 
 // List all payments
 const listPayments = async (req, res) => {
@@ -175,7 +194,7 @@ const updatePaymentStatus = async (req, res) => {
       return res.status(400).json({ error: "Payment status is required" });
     }
 
-    const updatedPayment = await updatePaymentsStatus(
+    const updatedPayment = await updatePaymentsStatusOffline(
       student_id || application_id,
       payment_status
     );
@@ -184,9 +203,7 @@ const updatePaymentStatus = async (req, res) => {
       return res.status(404).json({ error: "Payment not found" });
     }
 
-    res
-      .status(200)
-      .json({ message: "Payment status updated", updatedPayment });
+    res.status(200).json({ message: "Payment status updated", updatedPayment });
   } catch (error) {
     console.error("Error updating payment status:", error);
     res.status(500).json({ error: "Internal Server Error" });
