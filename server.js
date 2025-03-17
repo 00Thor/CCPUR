@@ -3,7 +3,6 @@ const cors = require("cors");
 const helmet = require("helmet");
 const router = require("./routes/mainRouter");
 const http = require("http");
-const { setupWebSocket } = require("./controller/websocket");
 require("dotenv").config();
 const path = require("path");
 
@@ -17,25 +16,37 @@ const port = process.env.PORT || 3000;
 // Security middleware: Helmet
 app.use(
   helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow images from other origins
-    contentSecurityPolicy: {
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: process.env.NODE_ENV === "production" ? {
       directives: {
         defaultSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", process.env.BACKEND_URL || "http://192.168.1.11:5000"], // Dynamic backend URL
+        imgSrc: [
+          "'self'",
+          "data:",
+          process.env.BACKEND_URL || "http://192.168.1.12:5000",
+        ],
+        scriptSrc: ["'self'"],
+        connectSrc: [
+          "'self'",
+          process.env.BACKEND_URL || "http://192.168.1.12:5000",
+        ],
       },
-    },
+    } : false, // Disable CSP in development for easier debugging
   })
 );
 
 // CORS setup: Adjust for production
 app.use(
   cors({
-    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : "*",
+    origin: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(",")
+      : ["http://192.168.1.5:9000"], // Allow frontend URL in development
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     allowedHeaders: "Content-Type,Authorization",
-    credentials: true,
+    credentials: true, // Allow cookies and credentials
   })
 );
+
 
 // Static file handling with caching
 app.use("/uploads", express.static(path.join(__dirname, "uploads"), { maxAge: "1d" }));
@@ -50,20 +61,18 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-// Rate limiter: Protect API routes
-const rateLimit = require("express-rate-limit");
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per window
-  message: "Too many requests, please try again later.",
-});
-app.use("/api/", limiter);
+// // Rate limiter: Protect API routes
+// const rateLimit = require("express-rate-limit");
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: 100, // Limit each IP to 100 requests per window
+//   message: "Too many requests, please try again later.",
+// });
+// app.use("/api/", limiter);
 
 // API Routes
 app.use("/api", router);
 
-// WebSocket setup
-setupWebSocket(server);
 
 // Handle unknown routes
 app.all("*", (req, res) => {
@@ -82,5 +91,5 @@ require("events").EventEmitter.defaultMaxListeners = 20;
 
 // Start server
 server.listen(port, "0.0.0.0", () => {
-  console.log(`Server is running on http://localhost:${port}`);
+  console.log(`Server is running on port :${port}`);
 });

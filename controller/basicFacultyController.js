@@ -1,5 +1,5 @@
-const { findFacultyByEmail, createFaculty, updateFacultyPassword } = require("../models/facultyLoginModel");
-const {uploadFacultyFiles }= require("./fileUploadController");
+const { findFacultyByEmail, createFaculty, updateFacultyPassword } = require("../models/basicFacultyModel");
+const { uploadFacultyFiles } = require("./fileUploadController")
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 require("nodemailer");
@@ -10,10 +10,45 @@ const newFaculty = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN"); // Start a database transaction
-    const facultyData = req.body;
+
+    const {
+      name,
+      email,
+      password,
+      department,
+      designation,
+      nature_of_appointment,
+      engagement,
+      phone_number,
+      profile_picture,
+      date_of_joining,
+      teaching_experience,
+      address,
+      pan_no,
+      date_of_birth,
+      gender,
+      category,
+    } = req.body;
 
     // Validate required fields
-    if (!name || !email || !password || !department || !designation  || !nature_of_appointment || !engagement || !phone_number || !profile_picture ||!date_of_joining || !teaching_experience || !address || !pan_no || !date_of_birth || !gender || !category) {
+    if (
+      !name ||
+      !email ||
+      !password ||
+      !department ||
+      !designation ||
+      !nature_of_appointment ||
+      !engagement ||
+      !phone_number ||
+      !profile_picture ||
+      !date_of_joining ||
+      !teaching_experience ||
+      !address ||
+      !pan_no ||
+      !date_of_birth ||
+      !gender ||
+      !category
+    ) {
       return res.status(400).json({ message: "Please provide all required details" });
     }
 
@@ -24,16 +59,34 @@ const newFaculty = async (req, res) => {
     }
 
     // Hash the password
+    const bcrypt = require("bcrypt");
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Insert new faculty into the database
-    const newFaculty = await createFaculty(facultyData, hashedPassword);
-    if (!newFaculty) {
-      return res.status(500).json({ message: "Error creating faculty" });
-    }
+    const newFaculty = await createFaculty(
+      client,
+      {
+        name,
+        email,
+        hashedPassword,
+        department,
+        designation,
+        nature_of_appointment,
+        engagement,
+        phone_number,
+        profile_picture,
+        date_of_joining,
+        teaching_experience,
+        address,
+        pan_no,
+        date_of_birth,
+        gender,
+        category,
+      }
+    );
 
     // Handle file uploads
-    await uploadFacultyFiles(req, res);
+    await uploadFacultyFiles(client, req.body.files, newFaculty.faculty_id);
 
     // Commit the transaction
     await client.query("COMMIT");
@@ -41,18 +94,21 @@ const newFaculty = async (req, res) => {
     return res.status(201).json({
       message: "Faculty registered successfully",
       faculty: {
-        id: newFaculty.id,
+        id: newFaculty.faculty_id,
         name: newFaculty.name,
         email: newFaculty.email,
       },
     });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error in faculty registration:", error);
     return res.status(500).json({ message: "Internal Server Error" });
+  } finally {
+    client.release();
   }
 };
 
-// Faculty login function
+// Faculty login function(both admin & faculty)
 const facultyLogin = async (req, res) => {
   const { email, password } = req.body;
 

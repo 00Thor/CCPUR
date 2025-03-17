@@ -1,23 +1,13 @@
 const pool = require("../config/db"); 
 
-async function getStudents(filters, limit, offset) {
-    let query = 'SELECT * FROM student_details WHERE 1=1';
-    let values = [];
-    let paramIndex = 1; // Corrected parameter indexing
-
-    Object.keys(filters).forEach((key) => {
-        // Convert text fields to lowercase for case-insensitive filtering
-        query += ` AND LOWER(${key}) = LOWER($${paramIndex})`;
-        values.push(filters[key]);
-        paramIndex++;
-    });
-
-    // Corrected LIMIT & OFFSET placeholders
-    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    values.push(limit, offset);
-
-    return query(query, values);
+// Query function for fetching a single student
+async function getStudentByIdFromDB(user_id) {
+    const query = `SELECT * FROM student_details WHERE user_id = $1`;
+    const values = [user_id];
+    const result = await pool.query(query, values); // Replace `db.query` with your database client
+    return result.rows[0];
 }
+
 // Get faculty/staff details with optional filters & pagination
 async function getStaff(filters, limit, offset) {
     let query = 'SELECT * FROM faculty WHERE 1=1';
@@ -39,24 +29,15 @@ async function getStaff(filters, limit, offset) {
 // Delete a student either by Roll Number or Aadhaar Number
 const deletingStudent = async (req, res) => {
     try {
-        const { roll_no, aadhaar_no } = req.body;
+        const { student_id } = req.params;
 
-        if (!roll_no && !aadhaar_no) {
-            return res.status(400).json({ success: false, message: "Please provide roll number or Aadhaar number" });
+        if (!student_id) {
+            return res.status(400).json({ success: false, message: "No id passed from params" });
         }
 
         let query = '';
-        let values = [];
-
-        if (roll_no) {
-            query = 'DELETE FROM student_details WHERE roll_no = $1 RETURNING *';
-            values = [roll_no];
-        } else if (aadhaar_no) {
-            query = 'DELETE FROM student_details WHERE aadhaar_no = $1 RETURNING *';
-            values = [aadhaar_no];
-        }
-
-        const result = await query(query, values);
+            query = 'DELETE FROM student_details WHERE student_id = $1 RETURNING *';
+        const result = await query(query);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, message: "Student not found" });
@@ -89,10 +70,10 @@ const updateStudentById = async (studentId, updatedFields) => {
         values.push(studentId); // Add student ID at the end
 
         // SQL query
-        const query = `UPDATE student_details SET ${setClause} WHERE student_id = $${values.length} RETURNING *`;
+        const query = `UPDATE student_details SET ${setClause} WHERE user_id = $${values.length} RETURNING *`;
 
-        // Execute query
-        const result = await query(query, values);
+        // Execute query using your database client
+        const result = await pool.query(query, values); // Replace `db` with your actual database client instance
 
         if (result.rows.length === 0) {
             throw new Error("Student not found");
@@ -121,4 +102,4 @@ const getLatestAdmittedStudents = async () => {
     }
 };
 
-module.exports= { getStudents, getStaff, deletingStudent, updateStudentById, getLatestAdmittedStudents };
+module.exports= { getStudentByIdFromDB, getStaff, deletingStudent, updateStudentById, getLatestAdmittedStudents };

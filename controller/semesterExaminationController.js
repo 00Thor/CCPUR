@@ -1,4 +1,4 @@
-const studentExamination = require("../models/modelSemesterExamination");
+const semesterExam = require("../models/modelSemesterExamination");
 require("../config/db");
 
 const semesterExamination = async (req, res) => {
@@ -6,10 +6,10 @@ const semesterExamination = async (req, res) => {
     const studentData = req.body; // Extract student data from request body
 
     const requiredFields = [
-      "application_for", "examination_session", "ABC_id", "registration_no", "of_year", "roll_no", "dept_code",
-      "fathers_name", "guardian_name", "permanent_address", "course_code", "year_semester", "sex", "category"
+      "application_for", "examination_session", "abc_id", "registration_no", "of_year", "roll_no", "dept_code",
+       "course_code", "year_semester"
     ];
-    
+
     // Validate Paper Codes and Paper Numbers (At least one set must be provided)
     const paperFields = [
       ["papercode_a", "paperno_a"], ["papercode_b", "paperno_b"], ["papercode_c", "paperno_c"],
@@ -17,7 +17,7 @@ const semesterExamination = async (req, res) => {
       ["papercode_g", "paperno_g"], ["papercode_h", "paperno_h"], ["papercode_i", "paperno_i"],
       ["papercode_j", "paperno_j"]
     ];
-    
+
     // Validate Exam Passed fields (At least one set must be provided)
     const examFields = [
       ["exampassed1", "board1", "year1", "roll_no1", "division1", "subject_taken1"],
@@ -25,27 +25,45 @@ const semesterExamination = async (req, res) => {
       ["exampassed3", "board3", "year3", "roll_no3", "division3", "subject_taken3"],
       ["exampassed4", "board4", "year4", "roll_no4", "division4", "subject_taken4"]
     ];
-    
+
+    // Validate Debarred Exam details
+    const debarredFields = ["debarred_exam_name", "debarred_year", "debarred_rollno", "debarred_board"];
+
     // Check for missing required fields
     const missingFields = requiredFields.filter(field => !studentData[field]);
     if (missingFields.length > 0) {
       return res.status(400).json({ error: `Missing required fields: ${missingFields.join(", ")}` });
     }
-    
+
     // Ensure at least one exam record is filled
-    const hasExamRecord = examFields.some(fields => fields.some(field => studentData[field]));
+    const hasExamRecord = examFields.some(fields =>
+      fields.some(field => studentData[field] !== undefined && studentData[field] !== "")
+    );
     if (!hasExamRecord) {
       return res.status(400).json({ error: "At least one exam record must be provided." });
     }
-    
+
     // Ensure at least one paper code-number pair is provided
-    const hasPaper = paperFields.some(([code, number]) => studentData[code] || studentData[number]);
+    const hasPaper = paperFields.some(([code, number]) =>
+      (studentData[code] !== undefined && studentData[code] !== "") ||
+      (studentData[number] !== undefined && studentData[number] !== "")
+    );
     if (!hasPaper) {
       return res.status(400).json({ error: "At least one paper code and number pair must be provided." });
     }
- 
+
+    // Validate Debarred fields if any are present
+    const hasDebarredData = debarredFields.some(field =>
+      studentData[field] !== undefined && studentData[field] !== ""
+    );
+    if (hasDebarredData && debarredFields.some(field => !studentData[field])) {
+      return res.status(400).json({
+        error: `If debarred details are provided, all debarred fields (${debarredFields.join(", ")}) must be filled.`
+      });
+    }
+
     // Call the model function to insert data
-    const newStudentRecord = await studentExamination(studentData);
+    const newStudentRecord = await semesterExam(studentData);
 
     res.status(201).json({
       message: "Student examination record inserted successfully",
@@ -57,4 +75,16 @@ const semesterExamination = async (req, res) => {
   }
 };
 
-module.exports = { semesterExamination };
+// Get semester Exam Details
+const getSemesterExaminationDetails = async(req, res) => {
+    const { student_id } = req.params;
+  try {
+    const result = await pool.query("SELECT * FROM semester_examinations where student_id = $1", [student_id]);
+    res.status(200).json(result.rows);
+  }
+  catch(error) {
+    console.log('Failed to fetch semster exam details')
+    res.status(500).json({error: "internal Server Error"})
+  }
+}; 
+module.exports = { semesterExamination, getSemesterExaminationDetails };

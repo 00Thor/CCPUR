@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 
+// Move a student to Graduated Status
 const graduateStudent = async (req, res) => {
     const { student_id } = req.params;
     const graduatedBy = req.user.id; // Admin/Staff performing action(Track whois graduating the student)
@@ -21,6 +22,7 @@ const graduateStudent = async (req, res) => {
     }
 };
 
+// Undo the move
 const restoreStudent = async (req, res) => {
     const { student_id } = req.params;
     const restoredBy = req.user.id; // Admin/Staff restoring student

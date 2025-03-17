@@ -1,6 +1,6 @@
 const express = require("express");
 const {
-  newStudentApplication,
+  newStudentApplication
 } = require("../controller/newStudentApplication");
 const {
   studentFileUploadMiddleware,

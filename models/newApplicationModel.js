@@ -1,6 +1,6 @@
 const pool = require("../config/db");
 
-const newStudentDetails = async (studentData) => {
+const newStudentDetails = async (studentData, client) => {
   try {
     const {
       session, full_name, date_of_birth, aadhaar_no, gender, category, nationality, religion,
@@ -10,19 +10,6 @@ const newStudentDetails = async (studentData) => {
       classxii_board, classxii_rollno, classxii_year, classxii_div, classxii_tmarks, classxii_inst,
       course, mil, subject, agree, pincode, classxii_stream, user_id
     } = studentData;
-
-    const values = [
-      session || null, full_name || null, date_of_birth || null, aadhaar_no || null, gender || null,
-      category || null, nationality || null, religion || null, name_of_community || null,
-      contact_no || null, blood_group || null, email || null, fathers_name || null,
-      fathers_occupation || null, mothers_name || null, mothers_occupation || null,
-      permanent_address || null, present_address || null, guardian_name || null,
-      guardian_address || null, hslc_board || null, hslc_rollno || null, hslc_year || null,
-      hslc_div || null, hslc_tmarks || null, hslc_inst || null, classxii_board || null,
-      classxii_rollno || null, classxii_year || null, classxii_div || null, classxii_tmarks || null,
-      classxii_inst || null, course || null, mil || null, subject || null, agree || null,
-      pincode || null, classxii_stream || null, user_id
-    ];
 
     const query = `
       INSERT INTO new_applications (
@@ -37,16 +24,27 @@ const newStudentDetails = async (studentData) => {
         $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39
       ) RETURNING application_id, user_id;
     `;
+    const values = [
+      session || null, full_name || null, date_of_birth || null, aadhaar_no || null, gender || null,
+      category || null, nationality || null, religion || null, name_of_community || null,
+      contact_no || null, blood_group || null, email || null, fathers_name || null,
+      fathers_occupation || null, mothers_name || null, mothers_occupation || null,
+      permanent_address || null, present_address || null, guardian_name || null,
+      guardian_address || null, hslc_board || null, hslc_rollno || null, hslc_year || null,
+      hslc_div || null, hslc_tmarks || null, hslc_inst || null, classxii_board || null,
+      classxii_rollno || null, classxii_year || null, classxii_div || null, classxii_tmarks || null,
+      classxii_inst || null, course || null, mil || null, subject || null, agree || null,
+      pincode || null, classxii_stream || null, user_id
+    ];
 
-    console.log("Inserting values into new_applications:", values);
-
-    const result = await pool.query(query, values);
+    const result = await client.query(query, values);
     return result.rows[0]; // Return the inserted student data
   } catch (error) {
     console.error("Error inserting student data:", error.message);
     throw error;
   }
 };
+
 
 // Approve student insert to student table
 

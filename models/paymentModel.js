@@ -106,7 +106,11 @@ RETURNING *;
 };
 
 // Inistal insert from new_applications linking both table
-const insertStudentId = async (paymentData) => {
+const insertStudentId = async (paymentData, client) => {
+  if (!paymentData.application_id) {
+    throw new Error("application_id is required for inserting payment details.");
+  }
+
   const query = `
     INSERT INTO payments (
       student_id, application_id, payment_status
@@ -120,7 +124,7 @@ const insertStudentId = async (paymentData) => {
     paymentData.payment_status || "Pending", // Default to "Pending" if not provided
   ];
 
-  const result = await pool.query(query, values);
+  const result = await client.query(query, values); // Use the transaction client
   return result.rows[0];
 };
 

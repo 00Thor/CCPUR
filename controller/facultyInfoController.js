@@ -1,4 +1,4 @@
-const { teachingStaff, nonTeachingStaff, insertAttendance, getStaff, deleteStaffDetails, updateStaffById, getFacultyById } = require('../models/facultyInfoModels');
+const { teachingStaff, nonTeachingStaff, insertAttendance, getStaff, deleteStaffDetails, getFacultyById } = require('../models/facultyInfoModels');
 require('../config/db'); // Ensure pool is imported for database queries
 
 // Fetch Teaching Staff
@@ -104,32 +104,11 @@ const deleteStaff = async (req, res) => {
 };
 
 
-// Update Staff Details (Dynamic Update)
-const updateStaffDetails = async (req, res) => {
-    try {
-        const { identifier } = req.params; // Identifier could be roll_no or aadhaar_no
-        const updatedFields = req.body;
-
-        const updatedstaff = await updateStaffById(identifier, updatedFields);
-
-        if (!updatedstaff) {
-            return res.status(404).json({ success: false, message: 'Faculty member not found' });
-        }
-
-        res.json({ success: true, message: 'Faculty detail updated successfully', updatedstaff });
-    } catch (error) {
-        console.error("Error updating student:", error.message);
-        res.status(500).json({ success: false, message: 'An error occurred while updating the staff details' });
-    }
-};
-
-
 module.exports = { 
     getTeachingStaff, 
     getNonTeachingStaff, 
     updateAttendance, 
     getStaffDetails,
     facultyDashboard,
-    updateStaffDetails,
     deleteStaff,
 };

@@ -4,6 +4,7 @@
   "main": "server.js",
   "type": "commonjs",
   "dependencies": {
+    "archiver": "^7.0.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "crypto-browserify": "^3.12.1",
@@ -24,6 +25,7 @@
     "razorpay": "^2.9.6",
     "redis": "^4.7.0",
     "sequelize": "^6.37.5",
+    "sharp": "^0.33.5",
     "socket.io": "^4.8.1"
   },
   "scripts": {

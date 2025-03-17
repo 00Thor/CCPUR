@@ -117,8 +117,8 @@ const approveApplicant = async (req, res) => {
     // Move file uploads to student_id
     const updateFilesQuery = `
       UPDATE file_uploads 
-      SET student_id = $1, applicant_id = NULL 
-      WHERE applicant_id = $2
+      SET student_id = $1, application_id = NULL 
+      WHERE application_id = $2
     `;
     await client.query(updateFilesQuery, [studentId, application_id]);
 

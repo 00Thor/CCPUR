@@ -1,14 +1,24 @@
-const { getStudents, updateStudentById, deletingStudent, getLatestAdmittedStudents} = require('../models/adminModels');
+const { getStudentByIdFromDB, updateStudentById, deletingStudent, getLatestAdmittedStudents} = require('../models/adminModels');
+const { updateStaffById} = require('../models/facultyInfoModels')
 const pool = require('../config/db'); // Import the pool
 
 
-// Get student details with pagination(Admin & Staff)
-async function getStudentsDetails(req, res) {
+// Get a single student by user_id
+async function getStudentById(req, res) {
     try {
-        const { page = 1, limit = 25, ...filters } = req.query;
-        const offset = (page - 1) * limit;
-        const result = await getStudents(filters, limit, offset);
-        res.json(result.rows);
+        const { user_id } = req.params;
+
+        if (!user_id) {
+            return res.status(400).json({ error: 'user_id is required' });
+        }
+
+        const result = await getStudentByIdFromDB(user_id);
+
+        if (!result) {
+            return res.status(404).json({ error: 'Student not found' });
+        }
+
+        res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -62,10 +72,15 @@ const deleteStudent = async (req, res) => {
 // Update Student Details (Dynamic Update)
 const updateStudent = async (req, res) => {
     try {
-        const { identifier } = req.params; // Identifier could be roll_no or aadhaar_no
+        const { user_id } = req.params; // Identifier could be roll_no or aadhaar_no
         const updatedFields = req.body;
 
-        const updatedStudent = await updateStudentById(identifier, updatedFields);
+        // Validate inputs
+        if (!user_id || Object.keys(updatedFields).length === 0) {
+            return res.status(400).json({ success: false, message: 'Invalid input: user_id or fields missing' });
+        }
+
+        const updatedStudent = await updateStudentById(user_id, updatedFields);
 
         if (!updatedStudent) {
             return res.status(404).json({ success: false, message: 'Student not found' });
@@ -143,8 +158,26 @@ const getLatestStudents = async (req, res) => {
     }
 };
 
+// Update Staff Details (Dynamic Update)
+const updateStaffDetails = async (req, res) => {
+    try {
+        const { identifier } = req.params; // Identifier could be roll_no or aadhaar_no
+        const updatedFields = req.body;
+
+        const updatedstaff = await updateStaffById(identifier, updatedFields);
+
+        if (!updatedstaff) {
+            return res.status(404).json({ success: false, message: 'Faculty member not found' });
+        }
+
+        res.json({ success: true, message: 'Faculty detail updated successfully', updatedstaff });
+    } catch (error) {
+        console.error("Error updating student:", error.message);
+        res.status(500).json({ success: false, message: 'An error occurred while updating the staff details' });
+    }
+};
 
 
-module.exports = { getStudentsDetails, getAllStudentsDetails, 
+module.exports = { getStudentById, getAllStudentsDetails, 
     getStaffDetails, deleteStudent, updateStudent,
-     approveApplicant, rejectApplicant, getLatestStudents};
+     approveApplicant, rejectApplicant, getLatestStudents, updateStaffDetails,};
