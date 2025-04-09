@@ -11,13 +11,14 @@ const {
   getApprovedApplications,
   approveApplicant,
   rejectApplication,
+  getSingleApps,
   getSingleApplication,
   approveYearlyApplication,
 } = require("../controller/applicationApprovalController");
-const { authenticateUser, authorizeRoles } = require("../middleware/basicAuth");
+const { authenticateUser, authorizeRoles, authorizeSelfAccess} = require("../middleware/basicAuth");
 const { getLatestStudents } = require("../controller/adminController");
-const { studentFilesUpload } = require("../controller/fileUploadController");
-// const { viewapplication } = require("../controller/viewApplication");
+const { studentFilesUpload } = require("../controller/studentFileUploadController");
+
 
 const router = express.Router();
 
@@ -46,6 +47,14 @@ router.get("/getApprovedApplications", getApprovedApplications);
 router.get(
   "/getSingleApplication/:user_id",
   getSingleApplication
+);
+
+// Route to fetch their own application (only Self Access)
+router.get(
+  "/getSingleApps",
+  authenticateUser,
+  authorizeSelfAccess,
+  getSingleApps
 );
 
 // Route to approve a new student application (admin only)

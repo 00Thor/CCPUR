@@ -4,7 +4,10 @@
   "main": "server.js",
   "type": "commonjs",
   "dependencies": {
+    "@azure/storage-blob": "^12.27.0",
     "archiver": "^7.0.1",
+    "axios": "^1.8.4",
+    "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "crypto-browserify": "^3.12.1",
@@ -40,6 +43,7 @@
   "description": "",
   "devDependencies": {
     "@eslint/js": "^9.21.0",
+    "@types/bcryptjs": "^2.4.6",
     "eslint": "^9.21.0",
     "globals": "^16.0.0"
   }

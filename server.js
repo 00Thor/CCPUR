@@ -36,14 +36,21 @@ app.use(
 );
 
 // CORS setup: Adjust for production
+// app.use(
+//   cors({
+//     origin: process.env.ALLOWED_ORIGINS
+//       ? process.env.ALLOWED_ORIGINS.split(",")
+//       : ["http://192.168.1.5:9000"], // Allow frontend URL in development
+//     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+//     allowedHeaders: "Content-Type,Authorization",
+//     credentials: true, // Allow cookies and credentials
+//   })
+// );
 app.use(
   cors({
-    origin: process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(",")
-      : ["http://192.168.1.5:9000"], // Allow frontend URL in development
+    origin: "*",
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     allowedHeaders: "Content-Type,Authorization",
-    credentials: true, // Allow cookies and credentials
   })
 );
 
@@ -72,7 +79,6 @@ if (process.env.NODE_ENV === "development") {
 
 // API Routes
 app.use("/api", router);
-
 
 // Handle unknown routes
 app.all("*", (req, res) => {

@@ -1,13 +1,13 @@
 const pool = require("../config/db");
 const { newStudentDetails } = require("../models/newApplicationModel");
-const { studentFilesUpload } = require("../controller/fileUploadController");
+const { studentFilesUpload } = require("./studentFileUploadController");
 const { insertStudentId } = require("../models/paymentModel");
 
 const newStudentApplication = async (req, res) => {
   let client;
   try {
     client = await pool.connect();
-    await client.query("BEGIN"); // Start transaction
+    await client.query("BEGIN");
 
     const studentData = req.body;
 

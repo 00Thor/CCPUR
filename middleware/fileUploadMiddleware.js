@@ -53,7 +53,10 @@ const compressImage = async (filePath, destinationPath, mimeType) => {
         .resize({ width: 800 })
         .jpeg({ quality: 80 })
         .toFile(destinationPath);
-      fs.unlinkSync(filePath);
+      
+      if (fs.existsSync(destinationPath)) {
+        fs.unlinkSync(filePath);
+      }
     } catch (err) {
       console.error("Image compression error:", err);
       throw new Error("Failed to compress image.");
@@ -64,7 +67,7 @@ const compressImage = async (filePath, destinationPath, mimeType) => {
 // Student File Upload
 const studentFileUploadMiddleware = multer({
   storage: studentStorage,
-  limits: { fileSize: 1 * 1024 * 1024 }, // Limit file size to 1 MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // Limit file size to 1 MB
   fileFilter,
 }).fields([
   { name: "passport", maxCount: 1 },
@@ -86,9 +89,17 @@ const compressUploadedImages = async (req, res, next) => {
 
     Object.keys(req.files).forEach((fieldName) => {
       req.files[fieldName].forEach((file) => {
-        const compressedPath = `${file.path}-compressed.jpg`;
-        compressTasks.push(compressImage(file.path, compressedPath, file.mimetype));
-        file.path = compressedPath;
+        // Only compress image files
+        if (file.mimetype.startsWith("image/")) {
+          const compressedPath = `${file.path}-compressed.jpg`;
+          compressTasks.push(
+            compressImage(file.path, compressedPath, file.mimetype)
+          );
+          file.compressedPath = compressedPath; // Store compressed path
+        } else {
+          // Skip compression for non-image files (e.g., PDFs)
+          file.compressedPath = file.path;
+        }
       });
     });
 
@@ -100,6 +111,7 @@ const compressUploadedImages = async (req, res, next) => {
   }
 };
 
+
 // Faculty storage configuration
 const facultyStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -110,12 +122,14 @@ const facultyStorage = multer.diskStorage({
   },
 });
 
-// Faculty File Upload
-const uploadFacultyPhotoMiddleware = multer({
+// faculty file upload
+const uploadFacultyFilesMiddleware = multer({
   storage: facultyStorage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // Limit file size to 1 MB
+  limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter,
-}).single("faculty_picture");
+}).any();
+
+
 
 // Middleware to handle file filter errors gracefully
 const handleFileErrors = (err, req, res, next) => {
@@ -130,7 +144,7 @@ const handleFileErrors = (err, req, res, next) => {
 
 module.exports = {
   studentFileUploadMiddleware,
-  uploadFacultyPhotoMiddleware,
+  uploadFacultyFilesMiddleware,
   handleFileErrors,
   compressUploadedImages,
 };

@@ -77,7 +77,8 @@ const login = async (req, res) => {
     );
    res.json({
        message: "Login successful",
-       token
+       token,
+       userID : user._id
      });
   } catch (error) {
     console.error("Error in login:", error);
@@ -156,16 +157,15 @@ const resetpassword = async (req, res) => {
 };
 const getUser = async (req, res) => {
   try {
+    const { user_id } = req.params;
     // Ensure `req.user` has been set by middleware
-    if (!req.user || !req.user.email) {
-      return res.status(400).json({ error: "Invalid request. User email is missing." });
+    if (!user_id ) {
+      return res.status(400).json({ error: "Invalid request. User ID is missing." });
     }
 
-    const email = req.user.email; // Extract email from the authenticated request
-    console.log("Decoded user email:", email);
 
     // Query the database to find the user
-    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    const result = await pool.query("SELECT name,program FROM users WHERE user_id = $1", [user_id]);
     console.log("Query result:", result.rows);
 
     // Check if user exists
@@ -178,8 +178,8 @@ const getUser = async (req, res) => {
 
     // Respond with the user's details
     res.status(200).json({
-      name: user.name,
-      program: user.program,
+      name: user.name,  
+      program: user.program
     });
   } catch (error) {
     console.error("Error fetching user details:", error);

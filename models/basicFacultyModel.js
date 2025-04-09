@@ -1,10 +1,20 @@
 const pool = require("../config/db");
 
-// Find faculty by email
-const findFacultyByEmail = async (email) => {
-  const query = "SELECT * FROM faculty WHERE email = $1";
-  const values = [email];
-  const result = await pool.query(query, values);
+const findFacultyByEmail = async (client, email) => {
+  const localClient = client || (await pool.connect()); // Use existing or create a new client
+  let result;
+
+  try {
+    const query = "SELECT * FROM faculty WHERE email = $1";
+    const values = [email];
+    result = await localClient.query(query, values);
+  } catch (error) {
+    console.error("Error finding faculty by email:", error.message);
+    throw error;
+  } finally {
+    if (!client) localClient.release(); // Only release if we created the client
+  }
+
   return result.rows[0];
 };
 
@@ -15,50 +25,56 @@ const createFaculty = async (
     name,
     email,
     hashedPassword,
-    department,
     designation,
-    nature_of_appointment,
+    type,
     engagement,
-    phone_number,
-    profile_picture,
-    date_of_joining,
+    contact_number,
+    joining_date,
     teaching_experience,
     address,
-    pan_no,
     date_of_birth,
     gender,
     category,
+    academic_qualifications,
+    department_id,
   }
 ) => {
   const query = `
     INSERT INTO faculty (
-      name, email, password, department, designation, nature_of_appointment, 
-      engagement, phone_number, profile_picture, date_of_joining, 
-      teaching_experience, address, pan_no, date_of_birth, gender, category
+      name, email, password, designation, type, 
+      engagement, contact_number, joining_date, 
+      teaching_experience, address, date_of_birth, 
+      gender, category, academic_qualifications, department_id
     ) 
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-    RETURNING faculty_id, name, email
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    RETURNING faculty_id;
   `;
   const values = [
     name,
     email,
     hashedPassword,
-    department,
     designation,
-    nature_of_appointment,
+    type,
     engagement,
-    phone_number,
-    profile_picture,
-    date_of_joining,
+    contact_number,
+    joining_date,
     teaching_experience,
-    address,
-    pan_no,
+    address, 
     date_of_birth,
     gender,
     category,
+    academic_qualifications,
+    department_id,
   ];
-
+  
   const result = await client.query(query, values);
+ 
+  if (!result.rows[0]?.faculty_id) {
+    throw new Error("Failed to retrieve faculty_id after insertion.");
+  }
+
+  console.log("Inserted Faculty ID:", result.rows[0].faculty_id);
+
   return result.rows[0];
 };
 
@@ -83,9 +99,153 @@ const uploadFacultyFiles = async (client, files, faculty_id) => {
   await client.query(query, values);
 };
 
-// Update user's password
+// Update Faculty password
 const updateFacultyPassword = async (email, hashedPassword) => {
   const query = "UPDATE faculty SET password = $1 WHERE email = $2";
   await pool.query(query, [hashedPassword, email]);
 };
-module.exports = { findFacultyByEmail, createFaculty, uploadFacultyFiles, updateFacultyPassword };
+
+//Inser into Attendance
+const insertAttendance = async (attendance) => {
+  try {
+      const { name, roll_no, date, status } = attendance;
+
+      const query = `INSERT INTO attendance (name, roll_no, date, status) 
+                     VALUES ($1, $2, $3, $4) RETURNING *;`;
+
+      const values = [name, roll_no, date, status];
+      const result = await pool.query(query, values);
+
+      return result.rows[0];  
+  } catch (error) {
+      console.error('Error inserting attendance data:', error.message);
+      throw error;
+  }
+};
+const teachingStaff = async () => {
+  try {
+      const result = await pool.query('SELECT * FROM faculty WHERE type = $1', ['teaching']);
+      return result.rows;
+      
+  } catch (error) {
+      console.error('Error fetching teaching staff:', error);
+      throw error;
+  }
+};
+
+const nonTeachingStaff = async () => {
+  try {
+      const result = await pool.query('SELECT * FROM faculty WHERE type = $1', ['non-teaching']);
+      return result.rows;
+  } catch (error) {
+      console.error('Error fetching non-teaching staff:', error);
+      throw error;
+  }
+};
+
+// Delete staff (Admin only)
+const deleteFacultyDetails = async (req, res) => {
+  try {
+      const { faculty_id } = req.params;
+      const result = await pool.query('DELETE FROM faculty WHERE faculty_id = $1 RETURNING *', [faculty_id]);
+
+      if (result.rowCount === 0) {
+          return res.status(404).json({ success: false, message: 'Faculty member not found' });
+      }
+
+      res.json({ success: true, message: 'Faculty deleted successfully', deletedFaculty: result.rows[0] });
+  } catch (error) {
+      console.error("Error deleting faculty:", error.message);
+      res.status(500).json({ success: false, message: 'An error occurred while deleting the faculty member' });
+  }
+};
+
+// Update staff details dynamically
+const updateStaffById = async (staffId, updatedFields) => {
+  try {
+      // Extract keys from updatedFields (ignoring undefined fields)
+      const keys = Object.keys(updatedFields).filter(key => updatedFields[key] !== undefined);
+
+      if (keys.length === 0) {
+          throw new Error("No fields provided for update");
+      }
+
+      // Dynamically build the SET clause (e.g., "name = $1, email = $2")
+      const setClause = keys.map((key, index) => `${key} = $${index + 1}`).join(', ');
+
+      // Values for placeholders
+      const values = keys.map(key => updatedFields[key]);
+      values.push(staffId); // Add staff ID at the end
+
+      // SQL query
+      const query = `UPDATE faculty SET ${setClause} WHERE faculty_id = $${values.length} RETURNING *`;
+
+      // Execute query
+      const result = await pool.query(query, values);
+
+      if (result.rows.length === 0) {
+          throw new Error("Faculty not found");
+      }
+
+      return result.rows[0]; // Return updated staff data
+  } catch (error) {
+      console.error("Error updating staff details:", error.message);
+      throw new Error(error.message);
+  }
+};
+
+//get staff by id
+const getFacultyById = async (staffId) => {
+  try {
+      const result = await pool.query(`
+        SELECT 
+  f.*,
+
+  d.department_id,
+  d.department_name,
+  d.description AS department_description,
+
+  ar.record_id,
+  ar.number_of_journal_published,
+  ar.number_of_books_published,
+  ar.number_of_books_edited,
+  ar.number_of_seminars_attended,
+  ar.created_at AS academic_created_at,
+
+  fcr.role_id,
+  fcr.role_in_committee,
+  fcr.created_at AS role_created_at,
+
+  c.committee_id,
+  c.committee_name,
+  c.committee_type,
+  c.committee_description
+
+FROM faculty f
+LEFT JOIN department d ON f.department_id = d.department_id
+LEFT JOIN faculty_academic_records ar ON f.faculty_id = ar.faculty_id
+LEFT JOIN faculty_committee_roles fcr ON f.faculty_id = fcr.faculty_id
+LEFT JOIN committee c ON fcr.committee_id = c.committee_id
+
+-- Optional: get a single faculty
+ WHERE f.faculty_id = $1;
+`, [staffId]);
+      return result.rows[0];
+  } catch (error) {
+      console.error('Error fetching staff:', error.message);
+      throw new Error(error.message);
+  }
+};
+
+module.exports = {   
+  teachingStaff,
+  nonTeachingStaff,
+  insertAttendance,
+  deleteFacultyDetails,
+  updateStaffById,
+  getFacultyById,
+  findFacultyByEmail, 
+  createFaculty, 
+  uploadFacultyFiles,
+   updateFacultyPassword 
+  };

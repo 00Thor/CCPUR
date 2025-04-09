@@ -19,7 +19,13 @@ const getPendingApplications = async (req, res) => {
   try {
     const query = `
       SELECT 
-          na.*, 
+          na.user_id,
+          na.application_id,
+          na.full_name, 
+          na.contact_no,
+          na.course,
+          na.subject,
+          na.status, 
           p.payment_status
       FROM 
           new_applications na
@@ -51,11 +57,11 @@ const getPendingApplications = async (req, res) => {
 const getSingleApplication = async (req, res) => {
   try {
     const { user_id } = req.params; // Extract user_id from request params
-  
+
     if (!user_id) {
       return res.status(400).json({ error: "User ID is missing in params" });
     }
-  
+
     // Query to fetch all details from new_applications and amount from fee_pricing
     const query = `
       SELECT 
@@ -70,35 +76,143 @@ const getSingleApplication = async (req, res) => {
       WHERE 
         na.user_id = $1
     `;
-  
+
     const queryParams = [user_id];
-  
+
     //console.log("Fetching application details for user_id:", user_id);
-  
+
     const result = await pool.query(query, queryParams);
-  
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Application not found" });
     }
-  
+
     res.json(result.rows[0]); // Return all details from new_applications and the amount
   } catch (error) {
     console.error("Error fetching application details:", error.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
-}
+};
+
+// GET own APPLICATION(For student in the std applications dashboard)
+
+const getSingleApps = async (req, res) => {
+  try {
+    // Extract token from headers
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: "Authorization token is missing" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const { user_id } = decoded;
+    if (!user_id) {
+      return res.status(400).json({ error: "Invalid token: user ID missing" });
+    }
+
+    console.log("Fetching dashboard data for user_id:", user_id);
+
+    // Extract application_id from request query or params
+    const { application_id } = req.query;
+
+    // Query to fetch user application details
+    const appDetailsQuery = `
+      SELECT 
+        na.*, 
+        fp.payment_status
+      FROM 
+        new_applications na
+      INNER JOIN 
+        payments fp 
+      ON 
+        na.application_id = fp.application_id
+      WHERE 
+        na.user_id = $1;
+    `;
+    const appDetailsParams = [user_id];
+
+    const staticBaseUrl = `${process.env.SERVER_URL || "http://localhost:5000"}`;
+
+    // Build dynamic query for fetching files
+    let filesQuery;
+    let filesParams;
+
+    if (application_id) {
+      // Fetch files by application_id
+      filesQuery = `
+        SELECT passport,
+          signature,
+          tribe,
+          xadmitcard, 
+          xiiadmitcard, 
+          xmarksheet, 
+          xiimarksheet, 
+          migration
+        FROM file_uploads 
+        WHERE application_id = $1
+      `;
+      filesParams = [application_id];
+    } else {
+      // Fetch files by user_id (default)
+      filesQuery = `
+        SELECT passport,
+          signature,
+          tribe,
+          xadmitcard, 
+          xiiadmitcard, 
+          xmarksheet, 
+          xiimarksheet, 
+          migration
+        FROM file_uploads 
+        WHERE user_id = $1
+      `;
+      filesParams = [user_id];
+    }
+
+    // Execute both queries in parallel
+    const [appDetailsResult, filesResult] = await Promise.all([
+      pool.query(appDetailsQuery, appDetailsParams),
+      pool.query(filesQuery, filesParams),
+    ]);
+
+    // Transform file paths to static URLs
+    const files = filesResult.rows[0];
+    const pathLib = require("path");
+    const updatedFiles = files
+    ? Object.fromEntries(
+        Object.entries(files).map(([key, filePath]) => {
+          const fileName = filePath ? pathLib.basename(filePath) : null;
+          return [key, fileName ? `${staticBaseUrl}/${fileName}` : null];
+        })
+      )
+    : {};
+
+    // Construct response
+    const dashboardData = {
+      applications: appDetailsResult.rows[0] || {},
+      files: updatedFiles,
+    };
+
+    // Respond with combined data
+    res.status(200).json(dashboardData);
+  } catch (error) {
+    console.error("Error fetching single application data:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 // Approve Applicant & Copy to Students Table
-
 const approveApplicant = async (req, res) => {
-
   const { application_id } = req.params;
   const client = await pool.connect();
-  console.log("Received application_id:", req.params.application_id);
+  console.log("Received application_id:", application_id);
 
   try {
-    await client.query("BEGIN"); // Start transaction
+    await client.query("BEGIN");
 
-    // Get applicant details
+    // 1. Get applicant details
     const applicantQuery = `SELECT * FROM new_applications WHERE application_id = $1`;
     const result = await client.query(applicantQuery, [application_id]);
 
@@ -108,13 +222,13 @@ const approveApplicant = async (req, res) => {
     }
 
     const applicant = result.rows[0];
+    const course = applicant.course;
 
-    // Copy details to student_details using approvedStd function
+    // 2. Copy to students table
     const studentData = await approvedStd(applicant);
+    const studentId = studentData.student_id;
 
-    const studentId = studentData.student_id; // Capture student_id
-
-    // Move file uploads to student_id
+    // 3. Move files to student_id
     const updateFilesQuery = `
       UPDATE file_uploads 
       SET student_id = $1, application_id = NULL 
@@ -122,24 +236,66 @@ const approveApplicant = async (req, res) => {
     `;
     await client.query(updateFilesQuery, [studentId, application_id]);
 
-    // Update the applicant status to "accepted" in new_applications
-    await client.query(`UPDATE new_applications SET status = 'approved', accepted_at = NOW() WHERE application_id = $1`, [application_id]);
+    // 4. Update applicant status
+    await client.query(
+      `UPDATE new_applications SET status = 'approved', accepted_at = NOW() WHERE application_id = $1`,
+      [application_id]
+    );
 
-    await client.query("COMMIT"); // Commit transaction
+    // 5. Check current payment record
+    const paymentCheck = await client.query(
+      `SELECT payment_status, amount FROM payments WHERE application_id = $1`,
+      [application_id]
+    );
+
+    const paymentRecord = paymentCheck.rows[0];
+
+    if (
+      !paymentRecord ||
+      paymentRecord.payment_status !== "paid" ||
+      paymentRecord.amount === null
+    ) {
+      // 6. Get fee from fee_pricings table
+      const feeQuery = `SELECT amount FROM fee_pricings WHERE course = $1 LIMIT 1`;
+      const feeResult = await client.query(feeQuery, [course]);
+
+      if (feeResult.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res
+          .status(400)
+          .json({ error: "Fee not found for the selected course" });
+      }
+
+      const feeAmount = feeResult.rows[0].amount;
+
+      // 7. Update or insert payment record
+      if (paymentRecord) {
+        await client.query(
+          `UPDATE payments SET amount = $1, payment_status = 'paid' WHERE application_id = $2`,
+          [feeAmount, application_id]
+        );
+      } 
+    }
+    await client.query("COMMIT");
 
     // Send approval email
     await transporter.sendMail({
       from: `"College Admin" <${process.env.EMAIL_USER}>`,
       to: applicant.email,
       subject: "Application Approved For CCPUR COLLEGE",
-      html: `<p>Congratulations! Your application has been approved. You are now enrolled in ${applicant.course} at CCPUR COLLEGE.</p>`,
+      html: `<p>💥 *Listen up, future game-changer!* 💥</p>  
+              <p>Your application has been APPROVED. Not surprised, though – CCPUR COLLEGE doesn’t take just anyone. You’ve earned your spot, and you’re now officially enrolled in <strong>${applicant.course}</strong>. 🦾</p>  
+              <p>Welcome to the grind. No excuses. No limits. This is where the weak are separated from the strong, and the strong become unstoppable. 💯</p>  
+              <p>Sharpen your mind. Prepare for glory. It’s time to dominate. See you at the top. 🔥</p>  
+              <p><strong>CCPUR COLLEGE: Where Alphas Rise. 🐺</strong></p>
+
+      `,
     });
 
     res.status(200).json({
       message: "Application approved",
       student: studentData, // Return the inserted student data
     });
-
   } catch (error) {
     await client.query("ROLLBACK"); // Rollback on failure
     console.error("Error approving applicant:", error);
@@ -148,7 +304,6 @@ const approveApplicant = async (req, res) => {
     client.release();
   }
 };
-
 
 // Reject Application
 const rejectApplication = async (req, res) => {
@@ -174,7 +329,9 @@ const rejectApplication = async (req, res) => {
     );
 
     if (updateResult.rowCount === 0) {
-      return res.status(500).json({ error: "Failed to update application status" });
+      return res
+        .status(500)
+        .json({ error: "Failed to update application status" });
     }
 
     // Send rejection email
@@ -200,7 +357,12 @@ const getApprovedApplications = async (req, res) => {
   try {
     const query = `
       SELECT 
-          na.*, 
+          na.user_id,
+          na.full_name, 
+          na.contact_no,
+          na.course,
+          na.subject,
+          na.status,
           p.payment_status
       FROM 
           new_applications na
@@ -255,7 +417,9 @@ const approveYearlyApplication = async (req, res) => {
       newSemester = 5;
     } else {
       await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Student is not eligible for promotion." });
+      return res
+        .status(400)
+        .json({ error: "Student is not eligible for promotion." });
     }
 
     // Update the student's semester
@@ -265,8 +429,8 @@ const approveYearlyApplication = async (req, res) => {
     // Commit transaction
     await client.query("COMMIT");
 
-    return res.status(200).json({ 
-      message: `Application Approved: Student promoted to semester ${newSemester}.` 
+    return res.status(200).json({
+      message: `Application Approved: Student promoted to semester ${newSemester}.`,
     });
   } catch (error) {
     await client.query("ROLLBACK");
@@ -277,7 +441,12 @@ const approveYearlyApplication = async (req, res) => {
   }
 };
 
-
-module.exports = { getPendingApplications, approveApplicant, 
-  rejectApplication, getSingleApplication,
- getApprovedApplications, approveYearlyApplication};
+module.exports = {
+  getPendingApplications,
+  approveApplicant,
+  rejectApplication,
+  getSingleApps,
+  getSingleApplication,
+  getApprovedApplications,
+  approveYearlyApplication,
+};

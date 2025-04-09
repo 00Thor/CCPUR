@@ -1,20 +1,22 @@
 const express = require("express");
 const {
   studentFileUploadMiddleware,
-  uploadFacultyPhotoMiddleware,
   compressUploadedImages,
+  uploadFacultyFilesMiddleware,
+  handleFileErrors,
 } = require("../middleware/fileUploadMiddleware");
 const {
   studentFilesUpload,
   getSecureFiles,
-  uploadFacultyFiles,
-  getFacultyFiles,
-} = require("../controller/fileUploadController");
-const { authenticateUser, authorizeRoles } = require("../middleware/basicAuth");
+  updateStudentFiles,
+  deleteStudentFiles,
+} = require("../controller/studentFileUploadController");
+const { authenticateUser, authorizeRoles, authorizeSelfAccess } = require("../middleware/basicAuth");
+const { uploadFacultyFiles, getFacultyFiles, deleteFacultyFiles } = require("../controller/facultyFileUploadController");
 
 const router = express.Router();
 
-// Upload Student files (passport and signature)
+// Upload Student files (all files)
 router.post(
   "/studentFileUpload",
   authenticateUser,
@@ -23,20 +25,43 @@ router.post(
   studentFilesUpload
 );
 
-// Securely retrieve specific files by user ID and filename
+// Securely retrieve student files by user ID and filename
 router.get(
   "/secure-getfiles/:user_id",
   /*authenticateUser,
-    authorizeRoles("student", "staff", "admin"),*/
+    authorizeRoles("staff", "admin"),*/
+  getSecureFiles
+);
+// get faculty files 
+router.get(
+  "/getFacultyFiles/:faculty_id",
+  authenticateUser,
+  authorizeRoles("staff", "admin"),
+  updateStudentFiles
+);
+
+// delete student files 
+router.delete(
+  "/getFacultyFiles/:faculty_id",
+  authenticateUser,
+  authorizeRoles("staff", "admin"),
+  deleteStudentFiles
+);
+
+// Get student files for self only(student dashboard)
+router.get(
+  "/getMyFiles/:user_id",
+  authenticateUser,
+  authorizeSelfAccess,
   getSecureFiles
 );
 
 // Faculty file upload
 router.post(
-  "/facultyFileUpload",
-  authenticateUser,
-  uploadFacultyPhotoMiddleware,
-  compressUploadedImages, // Compress after upload
+  "/facultyFileUpload/:faculty_id",
+  //authenticateUser,
+  uploadFacultyFilesMiddleware,
+  handleFileErrors,
   uploadFacultyFiles
 );
 
@@ -46,6 +71,22 @@ router.get(
   authenticateUser,
   authorizeRoles("staff", "admin"),
   getFacultyFiles
+);
+
+// Update faculty files by faculty ID
+router.get(
+  "/getFacultyFiles/:faculty_id",
+  authenticateUser,
+  authorizeRoles("staff", "admin"),
+  uploadFacultyFiles
+);
+
+// delete faculty files by faculty ID
+router.get(
+  "/getFacultyFiles/:faculty_id",
+  authenticateUser,
+  authorizeRoles("staff", "admin"),
+  deleteFacultyFiles
 );
 
 module.exports = router;

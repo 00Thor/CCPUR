@@ -119,7 +119,7 @@ const verifyAndInsertPayment = async (req, res) => {
       application_id: notes.application_id,
       amount: amount / 100,
       payment_method,
-      payment_status: "Paid",
+      payment_status: "paid",
       transaction_id,
       payment_type: notes.payment_type,
       notes,

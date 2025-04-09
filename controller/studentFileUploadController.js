@@ -133,21 +133,19 @@ const getSecureFiles = async (req, res) => {
       migration,
     };
 
-    // Use environment variable or fallback for local development
-    const SERVER_URL =
-      process.env.SERVER_URL || "http://localhost:5000/uploads/";
+    const SERVER_URL = process.env.SERVER_URL || "http://localhost:5000";
 
-    // Build file URLs dynamically
     const files = Object.entries(fileNames).reduce((acc, [key, fileName]) => {
       if (fileName) {
-        const filePath = path.join(__dirname, "..", "uploads", fileName);
-        const fileBaseName = path.basename(filePath); // Extract only the file name
-        acc[`${key}_url`] = `${SERVER_URL}${fileBaseName}`; // Append file name to SERVER_URL
+        // If your files are saved inside "uploads/faculty" or similar
+        const fileUrl = `${SERVER_URL}/uploads/${fileName}`;
+        acc[`${key}_url`] = fileUrl;
       } else {
         acc[`${key}_url`] = null;
       }
       return acc;
     }, {});
+    
 
     return res.status(200).json({
       message: "Successfully retrieved files",
@@ -159,119 +157,155 @@ const getSecureFiles = async (req, res) => {
   }
 };
 
-//Upload faculty files
-
-const uploadFacultyFiles = async (req, res) => {
+//Update student file uploads
+const updateStudentFiles = async (req, res) => {
   try {
-    const { faculty_id } = req.body;
+    const { user_id, updates } = req.body;
 
-    if (!faculty_id) {
-      return res.status(400).json({ error: "Faculty ID is required." });
-    }
-
-    // Ensure files are present
-    const files = req.files || {};
-    if (!files.profile && !files.book_published && !files.seminar_attended) {
+    if (!user_id || !updates || !Array.isArray(updates)) {
       return res
         .status(400)
-        .json({ error: "At least one file type must be uploaded." });
+        .json({ error: "User ID and updates are required." });
     }
 
-    // Extract file paths
-    const profilePictures = (files.profile || []).map(
-      (file) => `/uploads/facultyPhoto/${file.filename}`
-    );
-    const booksPublished = (files.book_published || []).map(
-      (file) => `/uploads/facultyBooks/${file.filename}`
-    );
-    const seminarsAttended = (files.seminar_attended || []).map(
-      (file) => `/uploads/facultySeminars/${file.filename}`
-    );
+    const validColumns = [
+      "passport",
+      "signature",
+      "xadmitcard",
+      "xiiadmitcard",
+      "xmarksheet",
+      "xiimarksheet",
+      "migration",
+      "tribe",
+    ];
 
-    // Update the faculty_files table with new paths
-    const query = `
-      INSERT INTO faculty_files (faculty_id, profile_photos, books_published, seminars_attended)
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (faculty_id)
-      DO UPDATE SET
-        profile_photos = faculty_files.profile_photos || EXCLUDED.profile_photos,
-        books_published = faculty_files.books_published || EXCLUDED.books_published,
-        seminars_attended = faculty_files.seminars_attended || EXCLUDED.seminars_attended
-      RETURNING *
-    `;
-    const values = [faculty_id, profilePictures, booksPublished, seminarsAttended];
+    const blobServiceClient = BlobServiceClient.fromConnectionString(
+      process.env.AZURE_STORAGE_CONNECTION_STRING
+    );
+    const containerName = CONTAINER_NAME;
+    const containerClient = blobServiceClient.getContainerClient(containerName);
 
-    const result = await pool.query(query, values);
+    const updatePromises = updates.map(async ({ column_name, file }) => {
+      if (!validColumns.includes(column_name)) {
+        throw new Error(`Invalid column name: ${column_name}`);
+      }
 
-    res.status(201).json({
-      success: "Files uploaded successfully.",
-      updatedFiles: result.rows[0],
+      if (!file) {
+        throw new Error(`No file provided for column: ${column_name}`);
+      }
+
+      const fileName = `${user_id}-${column_name}-${Date.now()}`;
+      const blockBlobClient = containerClient.getBlockBlobClient(fileName);
+
+      // Upload the file to Azure Blob Storage
+      await blockBlobClient.uploadFile(file);
+
+      const fileUrl = blockBlobClient.url;
+
+      // Update the database with the new file URL
+      await pool.query(
+        `UPDATE file_uploads SET ${column_name} = $1 WHERE user_id = $2`,
+        [fileUrl, user_id]
+      );
+
+      return { column_name, fileUrl };
     });
-  } catch (error) {
-    console.error("Error uploading files:", error);
-    res
-      .status(500)
-      .json({ error: "File upload failed. Please try again later." });
-  }
-};
 
-// Fetch Faculty Files
-const getFacultyFiles = async (req, res) => {
-  try {
-    const { faculty_id } = req.params;
-    const requestingUserId = req.user.id;
-    const userRole = req.user.role;
-
-    // Validate user access
-    if (
-      userRole !== "admin" &&
-      userRole !== "staff" &&
-      requestingUserId !== faculty_id
-    ) {
-      return res
-        .status(403)
-        .json({ error: "Access denied: You can only access your own files." });
-    }
-
-    // Fetch file paths from the database
-    const query = `
-      SELECT profile_photos, books_published, seminars_attended
-      FROM faculty_files
-      WHERE faculty_id = $1
-    `;
-    const result = await pool.query(query, [faculty_id]);
-
-    if (result.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "No files found for the given faculty member." });
-    }
-
-    const { profile_photos, books_published, seminars_attended } = result.rows[0];
-
-    // Generate URLs for files
-    const files = {
-      profile_photos: profile_photos.map(
-        (path) => `/uploads/facultyPhoto/${path.split("/").pop()}`
-      ),
-      books_published: books_published.map(
-        (path) => `/uploads/facultyBooks/${path.split("/").pop()}`
-      ),
-      seminars_attended: seminars_attended.map(
-        (path) => `/uploads/facultySeminars/${path.split("/").pop()}`
-      ),
-    };
+    const results = await Promise.all(updatePromises);
 
     res.status(200).json({
-      message: "Successfully retrieved files.",
-      files,
+      success: true,
+      message: "Files updated successfully.",
+      results,
     });
   } catch (error) {
-    console.error("Error fetching files:", error);
-    res.status(500).json({ error: "Internal Server Error." });
+    console.error("Error updating files:", error);
+    res
+      .status(500)
+      .json({ error: "File update failed. Please try again later." });
   }
 };
 
+// Delete student Files upload
+const deleteStudentFiles = async (req, res) => {
+  try {
+    const { user_id, file_type } = req.body;
+
+    if (!user_id || !file_type) {
+      return res
+        .status(400)
+        .json({ error: "User ID and file type are required." });
+    }
+
+    const validColumns = [
+      "passport",
+      "signature",
+      "xadmitcard",
+      "xiiadmitcard",
+      "xmarksheet",
+      "xiimarksheet",
+      "migration",
+      "tribe",
+    ];
+
+    if (!validColumns.includes(file_type)) {
+      return res
+        .status(400)
+        .json({ error: `Invalid file type: ${file_type}.` });
+    }
+
+    // Fetch the file path from the database
+    const query = `SELECT ${file_type} AS file_path FROM file_uploads WHERE user_id = $1`;
+    const result = await pool.query(query, [user_id]);
+
+    if (result.rows.length === 0 || !result.rows[0].file_path) {
+      return res
+        .status(404)
+        .json({ error: "File not found for the given user and type." });
+    }
+
+    const filePath = result.rows[0].file_path;
+    const containerName = "student-files"; // Ensure this matches your container name
+
+    // Initialize Azure Blob Service Client
+    const blobServiceClient = BlobServiceClient.fromConnectionString(
+      process.env.AZURE_STORAGE_CONNECTION_STRING
+    );
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+
+    // Delete the file from Azure Blob Storage
+    const blockBlobClient = containerClient.getBlockBlobClient(
+      path.basename(filePath)
+    );
+    const deleteResponse = await blockBlobClient.deleteIfExists();
+
+    if (!deleteResponse.succeeded) {
+      return res
+        .status(500)
+        .json({ error: "Failed to delete the file from Azure Blob Storage." });
+    }
+
+    // Update the database to set the file column to NULL
+    const updateQuery = `UPDATE file_uploads SET ${file_type} = NULL WHERE user_id = $1`;
+    await pool.query(updateQuery, [user_id]);
+
+    res
+      .status(200)
+      .json({ success: true, message: "File deleted successfully." });
+  } catch (error) {
+    console.error("Error deleting file:", error);
+    res
+      .status(500)
+      .json({ error: "File deletion failed. Please try again later." });
+  }
+};
+
+module.exports = {
+  studentFilesUpload,
+  getSecureFiles,
+  updateStudentFiles,
+  deleteStudentFiles
+};
 
 // *************** For GOOGLE CLOUD SERVICE *********************************//
 
@@ -695,9 +729,3 @@ const getFacultyFiles = async (req, res) => {
 
 */
 
-module.exports = {
-  studentFilesUpload,
-  getSecureFiles,
-  uploadFacultyFiles,
-  getFacultyFiles,
-};
