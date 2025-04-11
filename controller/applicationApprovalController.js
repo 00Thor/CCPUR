@@ -95,26 +95,17 @@ const getSingleApplication = async (req, res) => {
 };
 
 // GET own APPLICATION(For student in the std applications dashboard)
-
 const getSingleApps = async (req, res) => {
   try {
-    // Extract token from headers
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ error: "Authorization token is missing" });
-    }
+    const { user_id } = req.params;
 
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const { user_id } = decoded;
     if (!user_id) {
-      return res.status(400).json({ error: "Invalid token: user ID missing" });
+      return res.status(400).json({ error: "User ID is required." });
     }
 
     console.log("Fetching dashboard data for user_id:", user_id);
 
-    // Extract application_id from request query or params
+    // Extract `application_id` from query parameters if provided
     const { application_id } = req.query;
 
     // Query to fetch user application details
@@ -133,75 +124,58 @@ const getSingleApps = async (req, res) => {
     `;
     const appDetailsParams = [user_id];
 
-    const staticBaseUrl = `${process.env.SERVER_URL || "http://localhost:5000"}`;
+    const query = `
+    SELECT passport, signature, tribe, xadmitcard, xiiadmitcard, xmarksheet, xiimarksheet, migration
+    FROM file_uploads
+    WHERE user_id = $1
+  `;
 
-    // Build dynamic query for fetching files
-    let filesQuery;
-    let filesParams;
-
-    if (application_id) {
-      // Fetch files by application_id
-      filesQuery = `
-        SELECT passport,
-          signature,
-          tribe,
-          xadmitcard, 
-          xiiadmitcard, 
-          xmarksheet, 
-          xiimarksheet, 
-          migration
-        FROM file_uploads 
-        WHERE application_id = $1
-      `;
-      filesParams = [application_id];
-    } else {
-      // Fetch files by user_id (default)
-      filesQuery = `
-        SELECT passport,
-          signature,
-          tribe,
-          xadmitcard, 
-          xiiadmitcard, 
-          xmarksheet, 
-          xiimarksheet, 
-          migration
-        FROM file_uploads 
-        WHERE user_id = $1
-      `;
-      filesParams = [user_id];
-    }
-
-    // Execute both queries in parallel
+    // Execute queries in parallel
     const [appDetailsResult, filesResult] = await Promise.all([
       pool.query(appDetailsQuery, appDetailsParams),
-      pool.query(filesQuery, filesParams),
+      pool.query(query, appDetailsParams),
     ]);
 
-    // Transform file paths to static URLs
-    const files = filesResult.rows[0];
-    const pathLib = require("path");
-    const updatedFiles = files
-    ? Object.fromEntries(
-        Object.entries(files).map(([key, filePath]) => {
-          const fileName = filePath ? pathLib.basename(filePath) : null;
-          return [key, fileName ? `${staticBaseUrl}/${fileName}` : null];
-        })
-      )
-    : {};
+    if (filesResult.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "Files not found for the given user" });
+    }
+    const {
+      passport,
+      signature,
+      tribe,
+      xadmitcard,
+      xiiadmitcard,
+      xmarksheet,
+      xiimarksheet,
+      migration,
+    } = filesResult.rows[0];
 
-    // Construct response
-    const dashboardData = {
-      applications: appDetailsResult.rows[0] || {},
-      files: updatedFiles,
+    const files = {
+      passport_url: passport || null,
+      signature_url: signature || null,
+      tribe_url: tribe || null,
+      xadmitcard_url: xadmitcard || null,
+      xiiadmitcard_url: xiiadmitcard || null,
+      xmarksheet_url: xmarksheet || null,
+      xiimarksheet_url: xiimarksheet || null,
+      migration_url: migration || null,
     };
 
-    // Respond with combined data
+    // Prepare the response data
+    const dashboardData = {
+      applications: appDetailsResult.rows[0] || {},
+      files: files || {}, // Files are fetched directly as URLs
+    };
+
     res.status(200).json(dashboardData);
   } catch (error) {
     console.error("Error fetching single application data:", error.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 
 // Approve Applicant & Copy to Students Table
 const approveApplicant = async (req, res) => {

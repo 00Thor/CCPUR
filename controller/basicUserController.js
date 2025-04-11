@@ -77,14 +77,14 @@ const login = async (req, res) => {
     );
    res.json({
        message: "Login successful",
-       token,
-       userID : user._id
+       token
      });
   } catch (error) {
     console.error("Error in login:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 
 // Configure the transporter
 const transporter = nodemailer.createTransport({
@@ -165,6 +165,40 @@ const getUser = async (req, res) => {
 
 
     // Query the database to find the user
+    const result = await pool.query("SELECT name,program,user_id FROM users WHERE user_id = $1", [user_id]);
+    console.log("Query result:", result.rows);
+
+    // Check if user exists
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Extract the user's details
+    const user = result.rows[0];
+
+    // Respond with the user's details
+    res.status(200).json({
+      name: user.name,  
+      program: user.program,
+      user_id: user.user_id
+    });
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ID card fetching
+const StudentIDCard = async (req, res) => {
+  try {
+    const { user_id } = req.params;
+    // Ensure `req.user` has been set by middleware
+    if (!user_id ) {
+      return res.status(400).json({ error: "Invalid request. User ID is missing." });
+    }
+
+
+    // Query the database to find the user
     const result = await pool.query("SELECT name,program FROM users WHERE user_id = $1", [user_id]);
     console.log("Query result:", result.rows);
 
@@ -188,11 +222,11 @@ const getUser = async (req, res) => {
 };
 
 
-
 module.exports = {
   newUser,
   login,
   resetpassword,
   forgotpassword,
   getUser,
+  StudentIDCard
 };

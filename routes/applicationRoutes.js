@@ -51,9 +51,9 @@ router.get(
 
 // Route to fetch their own application (only Self Access)
 router.get(
-  "/getSingleApps",
+  "/getSingleApps/:user_id",
   authenticateUser,
-  authorizeSelfAccess,
+  // authorizeSelfAccess,
   getSingleApps
 );
 

@@ -13,6 +13,7 @@ const academicRoutes = require("./academicRoutes");
 const documentRoute = require("./documentRoute");
 const verifyAadhaarRoute = require("./verifyAadhaarRoute");
 const facultyRoutes = require("./basicFacultyRoutes");
+const financeRoutes = require("./financeRoutes");
 
 
 const router = express.Router();
@@ -30,5 +31,6 @@ router.use('/academic', academicRoutes);
 router.use("/doc", documentRoute);
 router.use("/aadhaar", verifyAadhaarRoute);
 router.use("/faculty", facultyRoutes)
+router.use("/finance", financeRoutes)
 
 module.exports = router;

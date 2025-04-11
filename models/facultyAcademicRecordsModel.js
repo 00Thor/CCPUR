@@ -44,9 +44,12 @@ const createFacultyAcademicRecord = async (client, academicData, faculty_id) => 
 const updateFacultyAcademicRecords = async (facultyID,recordID, updatefields) => {
     try {
         const keys = Object.keys(updatefields).filter(key => updatefields[key] !== undefined);
-        if(keys.length === 0) {
-            throw new Error('No fields provided for update');
+          // Check if there are no valid fields to update
+          if (keys.length === 0) {
+            console.log(`No fields provided for update. Skipping update for FacultyID: ${facultyID}, RecordID: ${recordID}`);
+            return; // Exit the function gracefully
         }
+
         //dynamic build setclause for the sql query
         const setClause = keys.map((key, index) => `${key}= $${index+1}`).join(', ');
 

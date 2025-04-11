@@ -25,7 +25,6 @@ const createCommitteeRoles = async (client, faculty_id, committeeRoles) => {
   
       // Insert each role
       for (const role of committeeRoles) {
-        console.log("Processing role:", role); // Log each role being processed
         await insertNewCommitteeRole({ committeeRoles: [role] }, faculty_id, localClient);
       }
   

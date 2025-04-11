@@ -13,7 +13,6 @@ CREATE TABLE users (
     password VARCHAR(250) NOT NULL,
     role VARCHAR(50) NOT NULL DEFAULT 'student'
 );
-
 -- 2. DEPARTMENT TABLE
 CREATE TABLE department (
     department_id SERIAL PRIMARY KEY,

@@ -29,9 +29,6 @@ const insertNewCommitteeRole = async ({ committeeRoles }, faculty_id, client) =>
     `;
 
     try {
-        console.log("Executing query:", query);
-        console.log("With values:", values);
-
         const result = await client.query(query, values);
 
         if (result.rows.length === 0) {

@@ -194,48 +194,84 @@ const updateStaffById = async (staffId, updatedFields) => {
   }
 };
 
-//get staff by id
 const getFacultyById = async (staffId) => {
   try {
-      const result = await pool.query(`
-        SELECT 
-  f.*,
+    const result = await pool.query(`
+      SELECT 
+        f.*,
+        d.department_id,
+        d.department_name,
+        d.description AS department_description,
+        ar.number_of_journal_published,
+        ar.number_of_books_published,
+        ar.number_of_books_edited,
+        ar.number_of_seminars_attended,
+        ar.created_at AS academic_created_at,
+        fcr.role_in_committee,
+        c.committee_name
+      FROM faculty f
+      LEFT JOIN department d ON f.department_id = d.department_id
+      LEFT JOIN faculty_academic_records ar ON f.faculty_id = ar.faculty_id
+      LEFT JOIN faculty_committee_roles fcr ON f.faculty_id = fcr.faculty_id
+      LEFT JOIN committee c ON fcr.committee_id = c.committee_id
+      WHERE f.faculty_id = $1;
+    `, [staffId]);
 
-  d.department_id,
-  d.department_name,
-  d.description AS department_description,
+    if (result.rows.length === 0) {
+      throw new Error('No faculty found with the provided ID');
+    }
 
-  ar.record_id,
-  ar.number_of_journal_published,
-  ar.number_of_books_published,
-  ar.number_of_books_edited,
-  ar.number_of_seminars_attended,
-  ar.created_at AS academic_created_at,
+    // Extract common faculty information
+    const facultyProfile = {
+      faculty_id: result.rows[0].faculty_id,
+      name: result.rows[0].name,
+      email: result.rows[0].email,
+      address: result.rows[0].address,
+      contact_number: result.rows[0].contact_number,
+      date_of_birth: result.rows[0].date_of_birth 
+        ? new Date(result.rows[0].date_of_birth).toISOString().split('T')[0] 
+        : null,
+      gender: result.rows[0].gender,
+      designation: result.rows[0].designation,
+      type: result.rows[0].type,
+      joining_date: result.rows[0].joining_date 
+        ? new Date(result.rows[0].joining_date).toISOString().split('T')[0] 
+        : null,
+      teaching_experience: result.rows[0].teaching_experience,
+      engagement: result.rows[0].engagement,
+      category: result.rows[0].category,
+      academic_qualifications: result.rows[0].academic_qualifications,
+      department: {
+        department_name: result.rows[0].department_name,
+        department_description: result.rows[0].department_description,
+      },
+      academicRecords: {
+        number_of_journal_published: result.rows[0].number_of_journal_published,
+        number_of_books_published: result.rows[0].number_of_books_published,
+        number_of_books_edited: result.rows[0].number_of_books_edited,
+        number_of_seminars_attended: result.rows[0].number_of_seminars_attended,
+        academic_created_at: result.rows[0].academic_created_at,
+      },
+      committeeRoles: [],
+    };
 
-  fcr.role_id,
-  fcr.role_in_committee,
-  fcr.created_at AS role_created_at,
+    // Add committee roles
+    result.rows.forEach((row) => {
+      if (row.role_in_committee && row.committee_name) {
+        facultyProfile.committeeRoles.push({
+          role_in_committee: row.role_in_committee,
+          committee_name: row.committee_name
+        });
+      }
+    });
 
-  c.committee_id,
-  c.committee_name,
-  c.committee_type,
-  c.committee_description
-
-FROM faculty f
-LEFT JOIN department d ON f.department_id = d.department_id
-LEFT JOIN faculty_academic_records ar ON f.faculty_id = ar.faculty_id
-LEFT JOIN faculty_committee_roles fcr ON f.faculty_id = fcr.faculty_id
-LEFT JOIN committee c ON fcr.committee_id = c.committee_id
-
--- Optional: get a single faculty
- WHERE f.faculty_id = $1;
-`, [staffId]);
-      return result.rows[0];
+    return facultyProfile;
   } catch (error) {
-      console.error('Error fetching staff:', error.message);
-      throw new Error(error.message);
+    console.error('Error fetching staff:', error.message);
+    throw new Error(error.message);
   }
 };
+
 
 module.exports = {   
   teachingStaff,

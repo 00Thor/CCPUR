@@ -7,9 +7,9 @@ const {
 } = require("../middleware/fileUploadMiddleware");
 const {
   studentFilesUpload,
-  getSecureFiles,
   updateStudentFiles,
   deleteStudentFiles,
+  getStudentFiles,
 } = require("../controller/studentFileUploadController");
 const { authenticateUser, authorizeRoles, authorizeSelfAccess } = require("../middleware/basicAuth");
 const { uploadFacultyFiles, getFacultyFiles, deleteFacultyFiles } = require("../controller/facultyFileUploadController");
@@ -30,11 +30,11 @@ router.get(
   "/secure-getfiles/:user_id",
   /*authenticateUser,
     authorizeRoles("staff", "admin"),*/
-  getSecureFiles
+  getStudentFiles
 );
 // get faculty files 
-router.get(
-  "/getFacultyFiles/:faculty_id",
+router.put(
+  "/studentFiles/:faculty_id",
   authenticateUser,
   authorizeRoles("staff", "admin"),
   updateStudentFiles
@@ -42,7 +42,7 @@ router.get(
 
 // delete student files 
 router.delete(
-  "/getFacultyFiles/:faculty_id",
+  "/deleteStudentFiles/:faculty_id",
   authenticateUser,
   authorizeRoles("staff", "admin"),
   deleteStudentFiles
@@ -53,7 +53,7 @@ router.get(
   "/getMyFiles/:user_id",
   authenticateUser,
   authorizeSelfAccess,
-  getSecureFiles
+  getStudentFiles
 );
 
 // Faculty file upload
@@ -68,22 +68,22 @@ router.post(
 // Get faculty files by faculty ID
 router.get(
   "/getFacultyFiles/:faculty_id",
-  authenticateUser,
-  authorizeRoles("staff", "admin"),
+  //authenticateUser,
+  //authorizeRoles("staff", "admin"),
   getFacultyFiles
 );
 
 // Update faculty files by faculty ID
-router.get(
-  "/getFacultyFiles/:faculty_id",
+router.put(
+  "/facultyFiles/:faculty_id",
   authenticateUser,
   authorizeRoles("staff", "admin"),
   uploadFacultyFiles
 );
 
 // delete faculty files by faculty ID
-router.get(
-  "/getFacultyFiles/:faculty_id",
+router.delete(
+  "/facultyFiles/:faculty_id",
   authenticateUser,
   authorizeRoles("staff", "admin"),
   deleteFacultyFiles

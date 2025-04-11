@@ -38,8 +38,6 @@ const insertFacultyAcademicRecords = async (client, faculty_id, academicRecords)
       number_of_seminars_attended: numberOfSeminarsAttended,
     };
 
-    console.log("Inserting academic data:", academicData);
-
     // Call the model to insert the academic record
     const insertedRecord = await createFacultyAcademicRecord(localClient, academicData, faculty_id);
 
@@ -99,27 +97,11 @@ const updateFacultyRecords = async (req, res) => {
       number_of_seminars_attended,
     } = req.body;
 
-    if (
-      (!number_of_journal_published || !number_of_book_published,
-      !book_published_filepath || !number_of_book_edited,
-      !number_of_seminars_attended,
-      !seminar_attended_filepath)
-    ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Please provide fields to be updated",
-        });
-    }
-
     const updatefields = {
       number_of_journal_published,
       number_of_book_published,
-      book_published_filepath,
       number_of_book_edited,
-      number_of_seminars_attended,
-      seminar_attended_filepath,
+      number_of_seminars_attended
     };
     // Call the model function to insert attendance
     const update = await updateFacultyAcademicRecords(faculty_id, record_id, updatefields);
