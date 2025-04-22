@@ -73,30 +73,7 @@ const createFaculty = async (
     throw new Error("Failed to retrieve faculty_id after insertion.");
   }
 
-  console.log("Inserted Faculty ID:", result.rows[0].faculty_id);
-
   return result.rows[0];
-};
-
-// Upload faculty files
-const uploadFacultyFiles = async (client, files, faculty_id) => {
-  const query = `
-    INSERT INTO faculty_files (faculty_id, profile_photos, books_published, seminars_attended)
-    VALUES ($1, $2, $3, $4)
-    ON CONFLICT (faculty_id) 
-    DO UPDATE SET
-      profile_photos = faculty_files.profile_photos || EXCLUDED.profile_photos,
-      books_published = faculty_files.books_published || EXCLUDED.books_published,
-      seminars_attended = faculty_files.seminars_attended || EXCLUDED.seminars_attended
-  `;
-  const values = [
-    faculty_id,
-    files.profile_photos || [],
-    files.books_published || [],
-    files.seminars_attended || [],
-  ];
-
-  await client.query(query, values);
 };
 
 // Update Faculty password
@@ -163,7 +140,6 @@ const deleteFacultyDetails = async (req, res) => {
 // Update staff details dynamically
 const updateStaffById = async (staffId, updatedFields) => {
   try {
-      // Extract keys from updatedFields (ignoring undefined fields)
       const keys = Object.keys(updatedFields).filter(key => updatedFields[key] !== undefined);
 
       if (keys.length === 0) {
@@ -175,19 +151,17 @@ const updateStaffById = async (staffId, updatedFields) => {
 
       // Values for placeholders
       const values = keys.map(key => updatedFields[key]);
-      values.push(staffId); // Add staff ID at the end
+      values.push(staffId);
 
-      // SQL query
       const query = `UPDATE faculty SET ${setClause} WHERE faculty_id = $${values.length} RETURNING *`;
 
-      // Execute query
       const result = await pool.query(query, values);
 
       if (result.rows.length === 0) {
           throw new Error("Faculty not found");
       }
 
-      return result.rows[0]; // Return updated staff data
+      return result.rows[0];
   } catch (error) {
       console.error("Error updating staff details:", error.message);
       throw new Error(error.message);
@@ -282,6 +256,5 @@ module.exports = {
   getFacultyById,
   findFacultyByEmail, 
   createFaculty, 
-  uploadFacultyFiles,
    updateFacultyPassword 
   };

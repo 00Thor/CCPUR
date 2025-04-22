@@ -15,7 +15,7 @@ INSERT INTO department (department_name) VALUES
 ('History'),
 ('Manipuri'),
 ('Mizo'),
-('Pol. Science'),
+('Political Science'),
 ('Sociology');
 
 INSERT INTO committee (committee_name, committee_type, committee_description)
@@ -37,7 +37,31 @@ VALUES
 ('Sexual Harassment', 'Disciplinary', 'Addresses and prevents sexual harassment issues'),
 ('Student Welfare', 'Student Affairs', 'Supports student well-being and services'),
 ('Website Policies', 'IT', 'Maintains website guidelines and content policies'),
-('Welfare', 'Administrative', 'General welfare of faculty and staff');
+('Welfare', 'Administrative', 'General welfare of faculty and staff'),
+('Academic Council', 'Academic', 'Responsible for academic policies and standards'),
+('Botanical Club', 'Environmental', 'Promotes botanical studies and activities'),
+('Ek Bharat Shreshtha Bharat Club', 'Cultural', 'Promotes unity in diversity through cultural exchange programs'),
+('Film/Dram Club', 'Extracurricular', 'Organizes film screenings and drama productions'),
+('Grievance Redressal Cell', 'Administrative', 'Handles student and staff grievances'),
+('Guidance Cell', 'Student Affairs', 'Provides academic and career guidance'),
+('Health Club', 'Health & Wellness', 'Promotes health and wellness activities'),
+('Hobby Club', 'Extracurricular', 'Encourages students to pursue hobbies and interests'),
+('Internal Quality Assurance Club (IQAC)', 'Administrative', 'Ensures quality standards in academics and administration'),
+('Literary Club', 'Extracurricular', 'Encourages literary activities and events'),
+('Minority Club', 'Student Affairs', 'Supports minority communities within the institution'),
+('Photography Club', 'Extracurricular', 'Focuses on photography skills and activities'),
+('SC/ST/OBC Cell', 'Regulatory', 'Supports SC/ST/OBC students and addresses their concerns'),
+('Teachers Council', 'Academic', 'Forum for teachers to discuss academic matters'),
+('Academic Bank of Credits', 'Academic', 'Manages credit accumulation and transfer for students'),
+('Electoral Literacy Club', 'Civic Engagement', 'Promotes electoral awareness and participation'),
+('Rashtriya Uchchatar Shiksha Abhiyan (RUSA)', 'Administrative', 'Monitors RUSA implementation in the institution'),
+('National Cadet Corps', 'Student Affairs', 'Provides military training and promotes discipline among students'),
+('International Red Cross Society (IRCS) Youth Wing', 'Health & Wellness', 'Organizes health and humanitarian activities'),
+('National Service Scheme (NSS)', 'Student Affairs', 'Encourages social service and community development initiatives'),
+('Entrepreneurship Development Committee', 'Entreprenuership', 'Promotes entrepreneurship and innovation among'),
+('Dance Society', 'Dancing', 'Promotes dance'),
+('Music Society', 'Music', 'Promotes music'),
+('Arts and Craft Society', 'Arts and Craft', 'Promotes arts and craft');
 
 
 SELECT 
@@ -75,4 +99,6 @@ LEFT JOIN committee c ON fcr.committee_id = c.committee_id
 
  Chairperson,Vice Chairperson,Convenor,Coordinator,Assistant Coordinator,IT Nodal Officer, Core Member,Secretary,Member Secretary, Member
 
- delete from faculty_files;
+ delete from faculty;
+
+ SELECT * FROM department;

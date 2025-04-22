@@ -11,7 +11,7 @@ const uploadPdf = multer({
       cb(new Error("Only PDF files are allowed"), false); // Reject non-PDF files
     }
   },
-  limits: { fileSize: 5 * 1024 * 1024 }, // Optional: set file size limit (e.g., 5MB)
+  limits: { fileSize: 5 * 1024 * 1024 }, 
 });
 
 // File filter for general files (images, PDFs, text files, etc.)
@@ -69,7 +69,7 @@ const compressImage = async (buffer, mimetype) => {
 const uploadGeneral = multer({
   storage,
   fileFilter: generalFileFilter,
-  limits: { fileSize: 3 * 1024 * 1024 }, // Set file size limit (5MB)
+  limits: { fileSize: 3 * 1024 * 1024 }, 
 }).any();
 
 // Middleware to compress images after file upload (for multiple files)

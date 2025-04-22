@@ -4,6 +4,8 @@ const {
   compressUploadedImages,
   uploadFacultyFilesMiddleware,
   handleFileErrors,
+  studentFileUpdateMiddleware,
+  processFacultyFiles,
 } = require("../middleware/fileUploadMiddleware");
 const {
   studentFilesUpload,
@@ -21,30 +23,33 @@ router.post(
   "/studentFileUpload",
   authenticateUser,
   studentFileUploadMiddleware,
-  compressUploadedImages, // Compress after upload
+  compressUploadedImages,
   studentFilesUpload
 );
 
 // Securely retrieve student files by user ID and filename
 router.get(
   "/secure-getfiles/:user_id",
-  /*authenticateUser,
-    authorizeRoles("staff", "admin"),*/
-  getStudentFiles
-);
-// get faculty files 
-router.put(
-  "/studentFiles/:faculty_id",
   authenticateUser,
   authorizeRoles("staff", "admin"),
+  getStudentFiles
+);
+// update student files 
+router.put(
+  "/updateFiles/:user_id",
+  authenticateUser,
+  authorizeRoles("admin"),
+  studentFileUpdateMiddleware,
+  compressUploadedImages,
+  handleFileErrors,
   updateStudentFiles
 );
 
 // delete student files 
 router.delete(
-  "/deleteStudentFiles/:faculty_id",
+  "/deleteStudentFiles/:user_id",
   authenticateUser,
-  authorizeRoles("staff", "admin"),
+  authorizeRoles("admin"),
   deleteStudentFiles
 );
 
@@ -59,17 +64,19 @@ router.get(
 // Faculty file upload
 router.post(
   "/facultyFileUpload/:faculty_id",
-  //authenticateUser,
+  authenticateUser,
   uploadFacultyFilesMiddleware,
   handleFileErrors,
+  processFacultyFiles,
   uploadFacultyFiles
 );
 
 // Get faculty files by faculty ID
 router.get(
   "/getFacultyFiles/:faculty_id",
-  //authenticateUser,
-  //authorizeRoles("staff", "admin"),
+  authenticateUser,
+  authorizeRoles("admin"),
+  authorizeSelfAccess,
   getFacultyFiles
 );
 
@@ -77,7 +84,7 @@ router.get(
 router.put(
   "/facultyFiles/:faculty_id",
   authenticateUser,
-  authorizeRoles("staff", "admin"),
+  authorizeRoles("admin"),
   uploadFacultyFiles
 );
 
@@ -85,7 +92,7 @@ router.put(
 router.delete(
   "/facultyFiles/:faculty_id",
   authenticateUser,
-  authorizeRoles("staff", "admin"),
+  authorizeRoles("admin"),
   deleteFacultyFiles
 );
 

@@ -54,37 +54,53 @@ const newUser = async (req, res) => {
 const login = async (req, res) => {
   const { email, password } = req.body;
 
+  // Validate input
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required" });
   }
 
   try {
+    // Fetch user by email
     const user = await findUserByEmail(email);
     if (!user) {
       return res.status(400).json({ error: "User not found" });
     }
 
+    // Validate password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ error: "Invalid password" });
     }
 
-    // Generate JWT with user role
+    // Generate JWT token
     const token = jwt.sign(
-      { user_id: user.user_id, email: user.email, role: user.role, program: user.program },
+      {
+        user_id: user.user_id,
+        email: user.email,
+        role: user.role,
+        program: user.program,
+      },
       process.env.JWT_SECRET,
-      { expiresIn: "10h" }
+      { expiresIn: "5h" } // Token expiration time
     );
-   res.json({
-       message: "Login successful",
-       token
-     });
+
+    res.cookie("authToken", token, {
+      httpOnly: true,
+      secure: true, 
+      sameSite: "None",
+      maxAge: 5 * 60 * 60 * 1000,
+    });
+
+    // Send the response with the user ID
+    res.status(200).json({
+      message: "Login successful",
+      user_id: user.user_id, // Include the user ID in the response
+    });
   } catch (error) {
     console.error("Error in login:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
 
 // Configure the transporter
 const transporter = nodemailer.createTransport({
@@ -158,10 +174,11 @@ const resetpassword = async (req, res) => {
 const getUser = async (req, res) => {
   try {
     const { user_id } = req.params;
-    // Ensure `req.user` has been set by middleware
+  
     if (!user_id ) {
       return res.status(400).json({ error: "Invalid request. User ID is missing." });
     }
+    console.log("Cookies:", req.cookies);
 
 
     // Query the database to find the user

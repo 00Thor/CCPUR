@@ -48,7 +48,7 @@ const newStudentDetails = async (studentData, client) => {
 
 // Approve student insert to student table
 
-const approvedStd = async (approvedStudents) => {
+const approvedStd = async (approvedStudents, client) => {
   try {
     const {
       session, full_name, date_of_birth, aadhaar_no, gender, category, nationality, religion,
@@ -82,8 +82,8 @@ const approvedStd = async (approvedStudents) => {
       course, mil, subject, user_id, agree, pincode, classxii_stream
     ];
 
-    const result = await pool.query(query, values);
-    return result.rows[0]; // Return the inserted student data
+    const result = await client.query(query, values);
+    return result.rows[0]; 
 
   } catch (error) {
     console.error("Error inserting student data:", error.message);

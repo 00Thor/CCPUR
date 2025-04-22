@@ -5,10 +5,9 @@ const { newFaculty } = require("./basicFacultyController");
 const { uploadFacultyFiles } = require("./facultyFileUploadController");
 const { createCommitteeRoles } = require("./committeeRolesController");
 const client = require("../config/db")
-
-const handleFacultyData = async (req, res) => {
+const handleFacultyCRUDController = async (req, res) => {
   try {
-    // Parse personalDetails from string to object
+    // Parse incoming data
     const personalDetails =
       typeof req.body.personalDetails === "string"
         ? JSON.parse(req.body.personalDetails)
@@ -29,8 +28,6 @@ const handleFacultyData = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Personal details are required." });
     }
-
-    // Ensure personalDetails is a valid object
     if (typeof personalDetails !== "object" || Array.isArray(personalDetails)) {
       return res
         .status(400)
@@ -38,37 +35,28 @@ const handleFacultyData = async (req, res) => {
     }
 
     const results = [];
+    let overallSuccess = true;
 
     try {
-        await client.query("BEGIN");
-      // Insert faculty personal details and get `faculty_id`
+      await client.query("BEGIN");
       const createdFaculty = await newFaculty(client, personalDetails);
-
       const faculty_id = createdFaculty.faculty_id;
-
-      // Insert academic records
       if (academicRecords) {
         await insertFacultyAcademicRecords(client, faculty_id, academicRecords);
       }
 
-      // Create committee roles
       if (Array.isArray(CommitteeIDAndRole) && CommitteeIDAndRole.length > 0) {
         await createCommitteeRoles(client, faculty_id, CommitteeIDAndRole);
       }
-
-      // Upload files
+s
       if (req.files) {
-        Object.keys(req.files).forEach((key) => {
-        });
         await uploadFacultyFiles(client, faculty_id, req.files);
-      } else {
-        console.log("No files found in the request.");
       }
-
-      await client.query("COMMIT"); // Commit transaction
-      results.push({ faculty: createdFaculty, success: true });
+      await client.query("COMMIT"); 
+      results.push({ faculty: createdFaculty, success: true });s
     } catch (error) {
-    await client.query("ROLLBACK"); // Rollback transaction on error
+      overallSuccess = false; 
+      await client.query("ROLLBACK"); 
       console.error(`Error processing faculty: ${personalDetails.name}`, error);
       results.push({
         faculty: personalDetails,
@@ -77,10 +65,14 @@ const handleFacultyData = async (req, res) => {
       });
     }
 
-    res.status(200).json({
-      success: true,
-      message: "Faculty data processed",
-      results,
+    // Set response status based on overall success
+    const statusCode = overallSuccess ? 200 : 500;
+    const message = overallSuccess
+      ? "Faculty data processed successfully"
+      : "Faculty data processing encountered errors";
+
+    res.status(statusCode).json({
+      success: overallSuccess,
     });
   } catch (error) {
     console.error("Error processing faculty data:", error);
@@ -88,4 +80,4 @@ const handleFacultyData = async (req, res) => {
   }
 };
 
-module.exports = handleFacultyData;
+module.exports = handleFacultyCRUDController;

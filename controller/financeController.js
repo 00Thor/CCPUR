@@ -29,6 +29,41 @@ const allPaymentReceiptsByDate = async (req, res) => {
   }
 };
 
+const allPaymentReceipts = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+          payment_id,
+          student_id,
+          application_id,
+          razorpay_order_id,
+          amount,
+          TO_CHAR(payment_date, 'YYYY-MM-DD') AS payment_date,
+          payment_method,
+          payment_type,
+          payment_status,
+          transaction_id,
+          notes
+      FROM payments;
+    `;
+    
+    const result = await pool.query(query);
+    res.status(200).json({
+      success: true,
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching payments:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch payment receipts. Please try again later.",
+      error: error.message, // Optional: Remove in production for security reasons
+    });
+  }
+};
+
+
+
 // Rajorpay receipt
 const razorPay = new Rajorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -121,5 +156,6 @@ module.exports ={
   razorpayReceipt,
   allPaymentReceiptsByDate,
   feePricing,
-  getFeePpricing
+  getFeePpricing,
+  allPaymentReceipts
 };

@@ -9,30 +9,32 @@ const {
     getAllFaculty
 } = require('../controller/basicFacultyController');
 const { getAllStudentsDetails, getStudentById, deleteStudent, updateStudent, getLatestStudents } = require('../controller/adminController');
-const { handleFileErrors, uploadFacultyFilesMiddleware } = require('../middleware/fileUploadMiddleware');
+const { handleFileErrors, uploadFacultyFilesMiddleware, processFacultyFiles } = require('../middleware/fileUploadMiddleware');
 const { insertFacultyAcademicRecords, deleteFacultyAcademicRecords, updateFacultyRecords, readFacultyAcademicRecords } = require('../controller/facultyAcademicRecordsController');
-const handleFacultyData = require('../controller/faccultyCRUDController');
 const { createCommitteeRoles, retrieveFacultyCommitteeRoles, updateCommitteeRoles, deleteFacultyCommiteeRoles } = require('../controller/committeeRolesController');
-const { authenticateUser, authorizeRoles } = require('../middleware/basicAuth');
+const { authenticateUser, authorizeRoles, authorizeSelfAccess } = require('../middleware/basicAuth');
+const { getFacultyFiles, uploadFacultyFiles, updateFacultyFiles } = require('../controller/facultyFileUploadController');
+const handleFacultyCRUDController = require('../controller/faccultyCRUDController');
+
 
 const router = express.Router();
 
 /* ************************* STUDENT **************************** */
 
 // Route to fetch student details (Admin & Staff)
-router.get('/getStudentDetails/:user_id', getStudentById); // Protected Route
+router.get('/getStudentDetails/:user_id',authenticateUser, authorizeRoles('admin'), getStudentById);
 
 // Route to fetch student details (Admin & Staff)
-router.get('/getAllStudentDetails', getAllStudentsDetails); // Protected Route
+router.get('/getAllStudentDetails',authenticateUser,authorizeRoles('admin'), getAllStudentsDetails);
 
 // Route to update student details(Admin Only)
-router.put('/updateStudentDetails/:user_id', /*authenticateUser, authorizeRoles('admin'),*/ updateStudent);//Protected route
+router.put('/updateStudentDetails/:user_id', authenticateUser, authorizeRoles('admin'), updateStudent);
 
 // Route to delete student details(Admin Only)
-router.delete('/deleteStudentDetails/:user_id', /*authenticateUser, authorizeRoles('admin'),*/ deleteStudent); //Protected route
+router.delete('/deleteStudentDetails/:user_id',authenticateUser, authorizeRoles('admin'), deleteStudent);
 
 // Route to fetch all/some faculty details (Admin Only)
-router.get('/getLatestStudent', getLatestStudents); // Protected Route
+router.get('/getLatestStudent',authenticateUser,authorizeRoles('admin'), getLatestStudents);
 
 
 /* **************** FACULTY SECTION *************************** */
@@ -42,17 +44,12 @@ router.get('/teaching-staff',getTeachingStaff);
 router.get('/non-teaching-staff',getNonTeachingStaff);
 
 
-// Protected route: Faculty Dashboard(staff Only)
- router.get('/singleFaculty/:faculty_id',/* authenticateUser, authorizeRoles('staff'),*/ retrieveSpecificFacultyById); //Protected route 
+// Faculty Details(personal, academic, committee roles)
+ router.get('/singleFaculty/:faculty_id', /*authenticateUser, authorizeRoles('admin'), authorizeSelfAccess,*/ retrieveSpecificFacultyById);
 
-
-// Entering a new faculty with all Details
-router.post('/handleFacultyInsert', uploadFacultyFilesMiddleware,
-  handleFileErrors, handleFacultyData);
-
-//GET complete faculty personal details(from all tables)
-router.get("/getFacultyDetails", retrieveSpecificFacultyById)
-
+// Entering a new faculty with all Details(Personal, academic, committee roles, files)
+router.post('/handleFacultyInsert', authenticateUser, authorizeRoles('admin'), uploadFacultyFilesMiddleware,
+  handleFileErrors, handleFacultyCRUDController);
 
 //GET complete faculty personal details(from all tables)
 router.get("/getAllFaculty", getAllFaculty)
@@ -62,12 +59,40 @@ router.get("/getAllFaculty", getAllFaculty)
 /*************************************** INDIVIDUALFACULTY DETAILS ACTIONS *********************************** */
 
 //####  PERSONAL
-//CREATE NEW Faculty personal 
+//enter Faculty personal details only
 router.post("/faculty-registration",
+  authenticateUser,
+  authorizeRoles('admin'),
   handleFileErrors,
   newFaculty
 );
 
+// Get faculty files by faculty ID
+router.get(
+  "/getFacultyFiles/:faculty_id",
+  authenticateUser,
+  authorizeRoles("admin"),
+  authorizeSelfAccess,
+  getFacultyFiles
+);
+
+// Faculty file upload
+router.post(
+  "/facultyFileUpload/:faculty_id",
+ // authenticateUser,
+  uploadFacultyFilesMiddleware,
+  handleFileErrors,
+  processFacultyFiles,
+  uploadFacultyFiles
+);
+
+// Update faculty files by faculty ID
+router.put(
+  "/facultyFiles/:faculty_id",
+  authenticateUser,
+  authorizeRoles("admin"),
+  updateFacultyFiles
+);
 //UPDATE faculty personal details
 router.put("/updateFacultyDetails", updateFacultyPersonalDetails)
 

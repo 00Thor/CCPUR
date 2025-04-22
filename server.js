@@ -3,79 +3,77 @@ const cors = require("cors");
 const helmet = require("helmet");
 const router = require("./routes/mainRouter");
 const http = require("http");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
-const path = require("path");
 
-// Create Express app and HTTP server
+// Initialize Express app and HTTP server
 const app = express();
 const server = http.createServer(app);
 
-// Set PORT with fallback
-const port = process.env.PORT || 3000;
+// Define port
+const port = process.env.PORT || 5000;
 
-// Security middleware: Helmet
+// Middleware to parse cookies
+app.use(cookieParser());
+
+
 app.use(
   helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-    contentSecurityPolicy: process.env.NODE_ENV === "production" ? {
-      directives: {
-        defaultSrc: ["'self'"],
-        imgSrc: [
-          "'self'",
-          "data:",
-          process.env.BACKEND_URL || "http://192.168.1.12:5000",
-        ],
-        scriptSrc: ["'self'"],
-        connectSrc: [
-          "'self'",
-          process.env.BACKEND_URL || "http://192.168.1.12:5000",
-        ],
-      },
-    } : false, // Disable CSP in development for easier debugging
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
+    strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true }, 
+    frameguard: { action: "deny" },
+    xPoweredBy: false,
+    referrerPolicy: { policy: "no-referrer" },
   })
 );
 
-// CORS setup: Adjust for production
-// app.use(
-//   cors({
-//     origin: process.env.ALLOWED_ORIGINS
-//       ? process.env.ALLOWED_ORIGINS.split(",")
-//       : ["http://192.168.1.5:9000"], // Allow frontend URL in development
-//     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-//     allowedHeaders: "Content-Type,Authorization",
-//     credentials: true, // Allow cookies and credentials
-//   })
-// );
+// CORS configuration
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : ["https://yourfrontend.com"]; // Replace with your frontend URL
+
 app.use(
   cors({
-    origin: "*",
+    origin: function (origin, callback) {
+      if (!origin) {
+        console.log("No origin provided (e.g., Postman). Allowing request.");
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin)) {
+        console.log("Origin allowed:", origin);
+        return callback(null, true);
+      } else {
+        console.error("Origin not allowed:", origin);
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     allowedHeaders: "Content-Type,Authorization",
+    credentials: true, // Allow cookies and credentials
   })
 );
-
-
-// Static file handling with caching
-app.use("/uploads", express.static(path.join(__dirname, "uploads"), { maxAge: "1d" }));
 
 // Body parsers for JSON and URL-encoded data
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Logging middleware (optional: Use in development)
+// Logging in development mode
 if (process.env.NODE_ENV === "development") {
   const morgan = require("morgan");
   app.use(morgan("dev"));
 }
 
-// // Rate limiter: Protect API routes
-// const rateLimit = require("express-rate-limit");
-// const limiter = rateLimit({
-//   windowMs: 15 * 60 * 1000, // 15 minutes
-//   max: 100, // Limit each IP to 100 requests per window
-//   message: "Too many requests, please try again later.",
-// });
-// app.use("/api/", limiter);
+// Middleware to log incoming cookies and headers for debugging
+if (process.env.NODE_ENV === "development") {
+  app.use((req, res, next) => {
+    console.log("Cookies received on backend:", req.cookies);
+    console.log("Headers received on backend:", req.headers);
+    next();
+  });
+}
 
 // API Routes
 app.use("/api", router);
@@ -87,12 +85,15 @@ app.all("*", (req, res) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  const message = process.env.NODE_ENV === "production" ? "Internal Server Error" : err.message;
+  const message =
+    process.env.NODE_ENV === "production"
+      ? "Internal Server Error"
+      : err.message;
   console.error("Error:", err);
   res.status(500).json({ error: message });
 });
 
-// Increase max listeners for events (optional)
+// Increase default max listeners to avoid warnings
 require("events").EventEmitter.defaultMaxListeners = 20;
 
 // Start server

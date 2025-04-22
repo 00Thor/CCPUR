@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 const { approvedStd } = require("../models/newApplicationModel");
 const nodemailer = require("nodemailer");
-const jwt = require("jsonwebtoken"); // Import the JSON Web Token library
+const jwt = require("jsonwebtoken");
 
 // Configure the transporter
 const transporter = nodemailer.createTransport({
@@ -52,8 +52,45 @@ const getPendingApplications = async (req, res) => {
   }
 };
 
-// Fetch a single application by application_id
 
+//Fetch all pending applications
+const getRejectedApplications = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+          na.user_id,
+          na.application_id,
+          na.full_name, 
+          na.contact_no,
+          na.course,
+          na.subject,
+          na.status, 
+          p.payment_status,
+          CASE WHEN na.status = 'rejected' THEN 'Valid Rejected' ELSE 'Not Rejected' END AS status_check
+      FROM 
+          new_applications na
+      LEFT JOIN 
+          payments p
+      ON 
+          na.application_id = p.application_id
+      WHERE 
+          na.status = 'rejected';
+    `;
+
+    const result = await pool.query(query);
+
+    if (result.rows.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching rejected applications:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// Fetch a single application by application_id
 const getSingleApplication = async (req, res) => {
   try {
     const { user_id } = req.params; // Extract user_id from request params
@@ -175,8 +212,6 @@ const getSingleApps = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
-
 // Approve Applicant & Copy to Students Table
 const approveApplicant = async (req, res) => {
   const { application_id } = req.params;
@@ -191,91 +226,103 @@ const approveApplicant = async (req, res) => {
     const result = await client.query(applicantQuery, [application_id]);
 
     if (result.rows.length === 0) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ error: "Applicant not found" });
+      throw new Error("Applicant not found");
     }
 
     const applicant = result.rows[0];
     const course = applicant.course;
 
     // 2. Copy to students table
-    const studentData = await approvedStd(applicant);
+    const studentData = await approvedStd(applicant, client);
+    if (!studentData || !studentData.student_id) {
+      throw new Error("Failed to copy applicant to students table.");
+    }
     const studentId = studentData.student_id;
 
-    // 3. Move files to student_id
-    const updateFilesQuery = `
-      UPDATE file_uploads 
-      SET student_id = $1, application_id = NULL 
-      WHERE application_id = $2
-    `;
-    await client.query(updateFilesQuery, [studentId, application_id]);
+    // 3. Update file uploads and fetch fee concurrently
+    const [updateFilesResult, feeResult] = await Promise.all([
+      client.query(
+        `UPDATE file_uploads SET student_id = $1, application_id = NULL WHERE application_id = $2`,
+        [studentId, application_id]
+      ),
+      client.query(
+        `SELECT amount, payment_type FROM fee_pricing WHERE course = $1 LIMIT 1`,
+        [course]
+      ),
+    ]);
+
+    if (feeResult.rows.length === 0) {
+      throw new Error("Fee not found for the selected course");
+    }
+
+    const { amount: feeAmount, payment_type } = feeResult.rows[0];
 
     // 4. Update applicant status
-    await client.query(
+    const updateApplicantResult = await client.query(
       `UPDATE new_applications SET status = 'approved', accepted_at = NOW() WHERE application_id = $1`,
       [application_id]
     );
 
-    // 5. Check current payment record
-    const paymentCheck = await client.query(
-      `SELECT payment_status, amount FROM payments WHERE application_id = $1`,
-      [application_id]
-    );
-
-    const paymentRecord = paymentCheck.rows[0];
-
-    if (
-      !paymentRecord ||
-      paymentRecord.payment_status !== "paid" ||
-      paymentRecord.amount === null
-    ) {
-      // 6. Get fee from fee_pricings table
-      const feeQuery = `SELECT amount FROM fee_pricings WHERE course = $1 LIMIT 1`;
-      const feeResult = await client.query(feeQuery, [course]);
-
-      if (feeResult.rows.length === 0) {
-        await client.query("ROLLBACK");
-        return res
-          .status(400)
-          .json({ error: "Fee not found for the selected course" });
-      }
-
-      const feeAmount = feeResult.rows[0].amount;
-
-      // 7. Update or insert payment record
-      if (paymentRecord) {
-        await client.query(
-          `UPDATE payments SET amount = $1, payment_status = 'paid' WHERE application_id = $2`,
-          [feeAmount, application_id]
-        );
-      } 
+    if (updateApplicantResult.rowCount === 0) {
+      throw new Error("Failed to update applicant status.");
     }
+
+    // 5. Update payment information
+    const checkPaymentQuery = `SELECT payment_status FROM payments WHERE application_id = $1`;
+    const paymentCheckResult = await client.query(checkPaymentQuery, [application_id]);
+
+    if (paymentCheckResult.rows.length > 0 && paymentCheckResult.rows[0].payment_status !== 'paid') {
+      const updatePaymentResult = await client.query(
+        `
+          UPDATE payments
+          SET
+            amount = $1,
+            payment_status = 'paid',
+            payment_method = 'cash',
+            payment_type = $2,
+            student_id = $3,
+            application_id = NULL
+          WHERE application_id = $4
+        `,
+        [feeAmount, payment_type, studentId, application_id]
+      );
+
+      if (updatePaymentResult.rowCount === 0) {
+        console.log("No pending payment record found for this application to update.");
+      }
+    } else if (paymentCheckResult.rows.length === 0) {
+      console.log("No payment record found for this application.");
+      // Optionally, you might want to create a payment record here if one doesn't exist.
+      // However, based on the requirement, we only update if it's pending.
+    } else {
+      console.log("Payment is already marked as paid.");
+    }
+
     await client.query("COMMIT");
 
-    // Send approval email
-    await transporter.sendMail({
-      from: `"College Admin" <${process.env.EMAIL_USER}>`,
+    transporter.sendMail({
+      from: process.env.EMAIL_USER,
       to: applicant.email,
       subject: "Application Approved For CCPUR COLLEGE",
-      html: `<p>💥 *Listen up, future game-changer!* 💥</p>  
-              <p>Your application has been APPROVED. Not surprised, though – CCPUR COLLEGE doesn’t take just anyone. You’ve earned your spot, and you’re now officially enrolled in <strong>${applicant.course}</strong>. 🦾</p>  
-              <p>Welcome to the grind. No excuses. No limits. This is where the weak are separated from the strong, and the strong become unstoppable. 💯</p>  
-              <p>Sharpen your mind. Prepare for glory. It’s time to dominate. See you at the top. 🔥</p>  
-              <p><strong>CCPUR COLLEGE: Where Alphas Rise. 🐺</strong></p>
-
+      html: `
+        <p>💥 *Listen up, future game-changer!* 💥</p>
+        <p>Your application has been APPROVED. Not surprised, though – CCPUR COLLEGE doesn’t take just anyone. You’ve earned your spot, and you’re now officially enrolled in <strong>${applicant.course}</strong>. 🦾</p>
+        <p>Welcome to the grind. No excuses. No limits. This is where the weak are separated from the strong, and the strong become unstoppable. 💯</p>
+        <p>Sharpen your mind. Prepare for glory. It’s time to dominate. See you at the top. 🔥</p>
+        <p><strong>CCPUR COLLEGE: Where Alphas Rise. 🐺</strong></p>
       `,
     });
 
     res.status(200).json({
       message: "Application approved",
-      student: studentData, // Return the inserted student data
+      student: studentData,
     });
   } catch (error) {
-    await client.query("ROLLBACK"); // Rollback on failure
-    console.error("Error approving applicant:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    await client.query("ROLLBACK"); // Rollback transaction on failure
+    console.error("Error approving applicant:", error.message);
+    res.status(500).json({ error: error.message });
   } finally {
-    client.release();
+    client.release(); // Release the client back to the pool
   }
 };
 
@@ -417,6 +464,7 @@ const approveYearlyApplication = async (req, res) => {
 
 module.exports = {
   getPendingApplications,
+  getRejectedApplications,
   approveApplicant,
   rejectApplication,
   getSingleApps,

@@ -171,7 +171,7 @@ CREATE TABLE payments (
     payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
     payment_method VARCHAR(50),
     payment_type VARCHAR(200),                
-    payment_status VARCHAR(50) DEFAULT 'Pending', 
+    payment_status VARCHAR(50) DEFAULT 'pending', 
     transaction_id VARCHAR(255),
     notes TEXT,            
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
