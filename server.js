@@ -31,15 +31,12 @@ app.use(
 );
 
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
-  : ["https://yourfrontend.com"]; // Replace with your frontend URL
+const allowedOrigins = process.env.ALLOWED_ORIGINS;
 
 app.use(
   cors({
     origin: function (origin, callback) {
       if (!origin) {
-        console.log("No origin provided (e.g., Postman). Allowing request.");
         return callback(null, true);
       }
       if (allowedOrigins.includes(origin)) {
@@ -64,15 +61,6 @@ app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV === "development") {
   const morgan = require("morgan");
   app.use(morgan("dev"));
-}
-
-// Middleware to log incoming cookies and headers for debugging
-if (process.env.NODE_ENV === "development") {
-  app.use((req, res, next) => {
-    console.log("Cookies received on backend:", req.cookies);
-    console.log("Headers received on backend:", req.headers);
-    next();
-  });
 }
 
 // API Routes

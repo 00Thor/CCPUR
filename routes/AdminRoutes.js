@@ -48,8 +48,8 @@ router.get('/non-teaching-staff',getNonTeachingStaff);
  router.get('/singleFaculty/:faculty_id', /*authenticateUser, authorizeRoles('admin'), authorizeSelfAccess,*/ retrieveSpecificFacultyById);
 
 // Entering a new faculty with all Details(Personal, academic, committee roles, files)
-router.post('/handleFacultyInsert', authenticateUser, authorizeRoles('admin'), uploadFacultyFilesMiddleware,
-  handleFileErrors, handleFacultyCRUDController);
+router.post('/handleFacultyInsert', /*authenticateUser, authorizeRoles('admin'), uploadFacultyFilesMiddleware,
+  handleFileErrors,*/ handleFacultyCRUDController);
 
 //GET complete faculty personal details(from all tables)
 router.get("/getAllFaculty", getAllFaculty)

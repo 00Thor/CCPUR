@@ -27,16 +27,23 @@ const facultyLogin = async (req, res) => {
       return res.status(401).json({ error: "Invalid password" });
     }
 
-    // Generate JWT with faculty role
     const token = jwt.sign(
-      { id: faculty.id, email: faculty.email, role: "faculty" },
+      { id: faculty.id, email: faculty.email, role: faculty.role },
       process.env.JWT_SECRET,
       { expiresIn: "4h" }
     );
 
+    res.cookie("authToken", token, {
+      httpOnly: true,
+      secure: true, 
+      sameSite: "None",
+      maxAge: 5 * 60 * 60 * 1000,
+    });
+
     res.json({
       message: "Login successful",
-      token
+      token,
+      faculty_id: faculty.faculty_id,
     });
   } catch (error) {
     console.error("Error in login:", error);

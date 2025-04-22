@@ -58,20 +58,16 @@ const login = async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required" });
   }
-
   try {
     // Fetch user by email
     const user = await findUserByEmail(email);
     if (!user) {
       return res.status(400).json({ error: "User not found" });
     }
-
-    // Validate password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ error: "Invalid password" });
     }
-
     // Generate JWT token
     const token = jwt.sign(
       {
@@ -91,10 +87,10 @@ const login = async (req, res) => {
       maxAge: 5 * 60 * 60 * 1000,
     });
 
-    // Send the response with the user ID
+    
     res.status(200).json({
       message: "Login successful",
-      user_id: user.user_id, // Include the user ID in the response
+      user_id: user.user_id, 
     });
   } catch (error) {
     console.error("Error in login:", error);

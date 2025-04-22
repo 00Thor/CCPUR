@@ -7,10 +7,10 @@ const router = express.Router();
 
 
 // Faculty Login Route
-router.post('/faculty-login', facultyLogin);
+router.post('/login', facultyLogin);
 
 // Faculty Forgot Password Route
-router.post('/faculty-forgot-password', forgotFacultyPassword);
+router.post('/forgot-password', forgotFacultyPassword);
 
 // Faculty Reset Password Route
 router.post('/faculty-reset-password', resetFacultyPassword);
