@@ -33,25 +33,24 @@ app.use(
 // CORS configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS;
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin) {
-        return callback(null, true);
-      }
-      if (allowedOrigins.includes(origin)) {
-        console.log("Origin allowed:", origin);
-        return callback(null, true);
-      } else {
-        console.error("Origin not allowed:", origin);
-        return callback(new Error("Not allowed by CORS"));
-      }
-    },
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    allowedHeaders: "Content-Type,Authorization",
-    credentials: true, // Allow cookies and credentials
-  })
-);
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // Allow non-origin requests (e.g., from Postman)
+    if (allowedOrigins === "*" || allowedOrigins.split(',').includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  allowedHeaders: "Content-Type,Authorization",
+  credentials: false,
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options("*", cors(corsOptions));
 
 // Body parsers for JSON and URL-encoded data
 app.use(express.json());

@@ -15,10 +15,11 @@ const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_C
 const containerClient = blobServiceClient.getContainerClient(CONTAINER_NAME);
 
 // Upload faculty files to Azure Blob Storage
-const uploadFacultyFiles = async (client, faculty_id, files) => {
+const uploadFacultyFiles = async (client, faculty_id, files, res) => {
+ 
   if (!faculty_id) throw new Error("No faculty ID provided.");
   if (!files.profile_photos || Object.keys(files.profile_photos).length === 0) {
-    throw new Error("No files uploaded or invalid files structure.");
+    return res.status(400).json({message:"No files uploaded or invalid files structure."});
   }
 
   // Define field mappings
@@ -126,66 +127,88 @@ const getFacultyFiles = async (req, res) => {
   }
 };
 
-  // Update Facultu Files
 const updateFacultyFiles = async (req, res) => {
-    try {
-      const { faculty_id } = req.params;
-      const { fileType } = req.body; // e.g., "profile_photos", "books_published", "seminars_attended"
-  
-      if (!faculty_id) {
-        return res.status(400).json({ error: "Faculty ID is required." });
-      }
-  
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ error: "No files provided for upload." });
-      }
-  
-      if (!["profile_photos", "books_published", "seminars_attended"].includes(fileType)) {
-        return res.status(400).json({ error: "Invalid file type provided." });
-      }
-  
-      const containerName = "faculty-files";
-      const blobServiceClient = BlobServiceClient.fromConnectionString(
-        process.env.AZURE_STORAGE_CONNECTION_STRING
-      );
-      const containerClient = blobServiceClient.getContainerClient(containerName);
-  
-      const uploadedUrls = [];
-  
-      for (const file of req.files) {
-        const fileName = `${uuidv4()}_${file.originalname}`;
-        const blockBlobClient = containerClient.getBlockBlobClient(fileName);
-  
-        // Upload file to Azure Blob Storage
-        await blockBlobClient.uploadFile(file.path);
-  
-        // Add URL to list
-        uploadedUrls.push(blockBlobClient.url);
-      }
-  
-      // Update the database
-      const query = `
-        UPDATE faculty_files 
-        SET ${fileType} = array_cat(${fileType}, $1) 
-        WHERE faculty_id = $2
-        RETURNING *;
-      `;
-  
-      const result = await pool.query(query, [uploadedUrls, faculty_id]);
-  
-      if (result.rowCount === 0) {
-        return res.status(404).json({ error: "Faculty not found." });
-      }
-  
-      res.status(200).json({
-        success: "Files updated successfully.",
-        updatedFiles: result.rows[0],
-      });
-    } catch (error) {
-      console.error("Error updating files:", error);
-      res.status(500).json({ error: "Failed to update files. Please try again later." });
+  try {
+    const { faculty_id } = req.params;
+
+    if (!faculty_id) {
+      return res.status(400).json({ error: "Faculty ID is required." });
     }
-  };
+
+    if (!req.files || Object.keys(req.files).length === 0) {
+      return res.status(400).json({ error: "No files provided for upload." });
+    }
+
+    const containerName = "faculty-files";
+    const blobServiceClient = BlobServiceClient.fromConnectionString(
+      process.env.AZURE_STORAGE_CONNECTION_STRING
+    );
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+
+    const uploadedFiles = [];
+
+    // Iterate over all fields in req.files
+    for (const [fileType, files] of Object.entries(req.files)) {
+      for (const file of files) {
+        // Construct the blob name with the faculty_id and file type as part of the folder structure
+        const blobName = `faculty/${faculty_id}/${fileType}/${file.originalname}`;
+        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+        // Check if the blob already exists
+        const blobExists = await blockBlobClient.exists();
+
+        // Upload file to Azure Blob Storage (overwrite if it already exists)
+        await blockBlobClient.uploadData(file.buffer, {
+          blobHTTPHeaders: { blobContentType: file.mimetype },
+        });
+
+        // Query the database to check if a record exists for this faculty_id and file_type
+        const queryCheck = `
+          SELECT * FROM faculty_files 
+          WHERE faculty_id = $1 AND file_type = $2;
+        `;
+        const result = await pool.query(queryCheck, [faculty_id, fileType]);
+
+        if (result.rows.length > 0) {
+          // Update the existing record with the new file path
+          const queryUpdate = `
+            UPDATE faculty_files 
+            SET file_path = $1 
+            WHERE faculty_id = $2 AND file_type = $3 
+            RETURNING *;
+          `;
+          const updatedResult = await pool.query(queryUpdate, [
+            blockBlobClient.url,
+            faculty_id,
+            fileType,
+          ]);
+          uploadedFiles.push(updatedResult.rows[0]);
+        } else {
+          // Insert a new record into the database
+          const queryInsert = `
+            INSERT INTO faculty_files (faculty_id, file_type, file_path)
+            VALUES ($1, $2, $3)
+            RETURNING *;
+          `;
+          const insertedResult = await pool.query(queryInsert, [
+            faculty_id,
+            fileType,
+            blockBlobClient.url,
+          ]);
+          uploadedFiles.push(insertedResult.rows[0]);
+        }
+      }
+    }
+
+    res.status(200).json({
+      success: "Files updated successfully.",
+      uploadedFiles,
+    });
+  } catch (error) {
+    console.error("Error updating files:", error.message);
+    res.status(500).json({ error: "Failed to update files. Please try again later." });
+  }
+};
   
   // Delete aculty Files
   const deleteFacultyFiles = async (req, res) => {

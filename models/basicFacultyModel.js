@@ -1,19 +1,14 @@
 const pool = require("../config/db");
 
-const findFacultyByEmail = async (client, email) => {
-  const localClient = client || (await pool.connect()); // Use existing or create a new client
-  let result;
-
+const findFacultyByEmail = async (email) => {
   try {
     const query = "SELECT * FROM faculty WHERE email = $1";
     const values = [email];
-    result = await localClient.query(query, values);
+    result = await pool.query(query, values);
   } catch (error) {
     console.error("Error finding faculty by email:", error.message);
     throw error;
-  } finally {
-    if (!client) localClient.release(); // Only release if we created the client
-  }
+  } 
 
   return result.rows[0];
 };

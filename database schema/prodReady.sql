@@ -309,9 +309,9 @@ CREATE TABLE faculty (
     faculty_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(150) NOT NULL,
     email VARCHAR(150),
-    password VARCHAR(50),
+    password VARCHAR(150),
     address TEXT,
-    contact_number VARCHAR(15),
+    contact_number VARCHAR(25),
     date_of_birth DATE,
     gender TEXT,
     designation VARCHAR(255),
@@ -319,8 +319,9 @@ CREATE TABLE faculty (
     joining_date DATE,
     teaching_experience VARCHAR(200),
     engagement VARCHAR(150),
-    category VARCHAR(50),
+    category VARCHAR(150),
     academic_qualifications VARCHAR(700),
+    role VARCHAR(150) DEFAULT 'staff',
     department_id INT REFERENCES department(department_id) ON DELETE SET NULL
 );
 
@@ -511,6 +512,14 @@ CREATE TABLE aadhaar_verification (
     user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE aadhaar_verification_attempts (
+    user_id VARCHAR(255) NOT NULL,
+    date DATE NOT NULL,
+    attempts INT DEFAULT 0,
+    PRIMARY KEY (user_id, date)
+);
+
 -- 30. FUNCTIONS AND TRIGGERS
 CREATE OR REPLACE FUNCTION move_to_alumni_with_log()
 RETURNS TRIGGER AS $$
@@ -612,3 +621,11 @@ SELECT cron.schedule(
 
 
 COMMIT;
+
+
+
+
+
+
+
+select * from faculty;

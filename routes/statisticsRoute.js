@@ -4,7 +4,13 @@ const { fetchApplicationStatistics, adminDashboardStats } = require("../controll
 const { authenticateUser, authorizeRoles } = require("../middleware/basicAuth");
 
 
-router.get("/newApplicationStatistics",authenticateUser,authorizeRoles('admin'), fetchApplicationStatistics);
-router.get("/adminDashboard",authenticateUser, authorizeRoles('admin'), adminDashboardStats)
+router.get("/newApplicationStatistics",
+    //authenticateUser,
+    //authorizeRoles('admin'), 
+    fetchApplicationStatistics);
+router.get("/adminDashboard",
+    //authenticateUser,
+   // authorizeRoles('admin'), 
+    adminDashboardStats)
 
 module.exports = router;

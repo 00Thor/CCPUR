@@ -42,18 +42,18 @@ const handleFacultyCRUDController = async (req, res) => {
       const createdFaculty = await newFaculty(client, personalDetails);
       const faculty_id = createdFaculty.faculty_id;
       if (academicRecords) {
+        console.log("personal:", personalDetails);
         await insertFacultyAcademicRecords(client, faculty_id, academicRecords);
       }
 
       if (Array.isArray(CommitteeIDAndRole) && CommitteeIDAndRole.length > 0) {
         await createCommitteeRoles(client, faculty_id, CommitteeIDAndRole);
       }
-s
-      if (req.files) {
-        await uploadFacultyFiles(client, faculty_id, req.files);
-      }
+      // if (req.files) {
+      //   await uploadFacultyFiles(client, faculty_id, req.files);
+      // }
       await client.query("COMMIT"); 
-      results.push({ faculty: createdFaculty, success: true });s
+      results.push({ faculty: createdFaculty, success: true });
     } catch (error) {
       overallSuccess = false; 
       await client.query("ROLLBACK"); 

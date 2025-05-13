@@ -3,19 +3,18 @@ const sharp = require("sharp");
 
 // File filter for PDF files
 const uploadPdf = multer({
-  storage: multer.memoryStorage(), // Store files in memory (you can adjust this if needed)
+  storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
     if (file.mimetype === "application/pdf") {
       cb(null, true); // Accept PDFs
     } else {
-      cb(new Error("Only PDF files are allowed"), false); // Reject non-PDF files
+      cb(new Error("Only PDF files are allowed"), false);
     }
   },
-  limits: { fileSize: 5 * 1024 * 1024 }, 
+  limits: { fileSize: 15 * 1024 * 1024 }, 
 });
 
 // File filter for general files (images, PDFs, text files, etc.)
-// General file filter
 const generalFileFilter = (req, file, cb) => {
   const allowedMimeTypes = [
     "image/jpeg",

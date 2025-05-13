@@ -32,7 +32,6 @@ const newUser = async (req, res) => {
     if (!newUser) {
       return res.status(500).json({ message: "Error creating user" });
     }
-    console.log("User registered successfully:", newUser);
 
     return res.status(201).json({
       message: "User registered successfully",
@@ -80,17 +79,25 @@ const login = async (req, res) => {
       { expiresIn: "5h" } // Token expiration time
     );
 
-    res.cookie("authToken", token, {
-      httpOnly: true,
-      secure: true, 
-      sameSite: "None",
-      maxAge: 5 * 60 * 60 * 1000,
-    });
+    // res.cookie("authToken", token, {
+    //   httpOnly: true,
+    //   secure: true, 
+    //   sameSite: "None",
+    //   maxAge: 5 * 60 * 60 * 1000,
+    // });
+    // res.cookie("authToken", token, {
+    //   httpOnly: true,
+    //   secure: false, // Use `true` if testing with HTTPS
+    //   sameSite: "None", // Allows cross-origin cookies
+    //   path: "/", // Root path for the cookie
+    // });
+    
 
     
     res.status(200).json({
       message: "Login successful",
       user_id: user.user_id, 
+       authToken: token ,
     });
   } catch (error) {
     console.error("Error in login:", error);
@@ -100,10 +107,10 @@ const login = async (req, res) => {
 
 // Configure the transporter
 const transporter = nodemailer.createTransport({
-  service: "gmail", // Change this if using another service
+  service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER, // Your email address
-    pass: process.env.EMAIL_PASS, // App password (not your regular password)
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 

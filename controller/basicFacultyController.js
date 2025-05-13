@@ -10,43 +10,82 @@ require("dotenv").config();
 
 // Faculty login function(both admin & faculty)
 const facultyLogin = async (req, res) => {
-  const { email, password } = req.body;
+//   const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required" });
-  }
+//   if (!email || !password) {
+//     return res.status(400).json({ error: "Email and password are required" });
+//   }
 
+//   try {
+//     const faculty = await findFacultyByEmail(email);
+//     if (!faculty) {
+//       return res.status(400).json({ error: "Faculty not found" });
+//     }
+
+//     const validPassword = await bcrypt.compare(password, faculty.password);
+//     if (!validPassword) {
+//       return res.status(401).json({ error: "Invalid password" });
+//     }
+
+//     const token = jwt.sign(
+//       { id: faculty.id, email: faculty.email, role: faculty.role },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "1m" }
+//     );
+
+//     res.cookie("authToken", token, {
+//       httpOnly: true,
+//       secure: true, 
+//       sameSite: "None",
+//       maxAge: 5 * 60 * 60 * 1000,
+//     });
+
+//     res.json({
+//       message: "Login successful",
+//       token,
+//       faculty_id: faculty.faculty_id,
+//     });
+//   } catch (error) {
+//     console.error("Error in login:", error);
+//     res.status(500).json({ error: "Internal Server Error" });
+//   }
+// };
   try {
-    const faculty = await findFacultyByEmail(email);
-    if (!faculty) {
-      return res.status(400).json({ error: "Faculty not found" });
+    const { name, password } = req.body;
+
+    // Validate request body
+    if (!name || !password) {
+      return res.status(400).json({ error: "Name and password are required." });
     }
 
-    const validPassword = await bcrypt.compare(password, faculty.password);
-    if (!validPassword) {
-      return res.status(401).json({ error: "Invalid password" });
+    // Query the database for the admin's credentials
+    const query = "SELECT name, password, role FROM users WHERE name = $1 AND role = $2";
+    const result = await pool.query(query, [name, "admin"]);
+
+    // Check if the admin exists
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: "Invalid name or password." });
     }
 
+    const admin = result.rows[0];
+
+    // Validate the password using bcrypt
+    const isPasswordValid = await bcrypt.compare(password, admin.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid name or password." });
+    }
+
+    // Generate a JWT for the admin
     const token = jwt.sign(
-      { id: faculty.id, email: faculty.email, role: faculty.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "4h" }
+      { name: admin.name, role: admin.role }, // Payload
+      process.env.JWT_SECRET, // Secret key
+      { expiresIn: "6h" } // Expiration time
     );
 
-    res.cookie("authToken", token, {
-      httpOnly: true,
-      secure: true, 
-      sameSite: "None",
-      maxAge: 5 * 60 * 60 * 1000,
-    });
-
-    res.json({
-      message: "Login successful",
-      token,
-      faculty_id: faculty.faculty_id,
-    });
+    // Respond with the token
+    res.status(200).json({ message: "Login successful.", token });
   } catch (error) {
-    console.error("Error in login:", error);
+    console.error("Error in loginAdmin:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -118,7 +157,7 @@ const newFaculty = async (client, personalData) => {
     }
 
     // Check if faculty already exists
-    const facultyExists = await findFacultyByEmail(localClient, email);
+    const facultyExists = await findFacultyByEmail(email);
     if (facultyExists) {
       throw new Error("Faculty with this email already exists.");
     }
@@ -369,10 +408,10 @@ const filterFacultyDashboard = async (req, res) => {
 // Update Staff Details (Dynamic Update)
 const updateFacultyPersonalDetails = async (req, res) => {
   try {
-      const { identifier } = req.params; // Identifier could be roll_no or aadhaar_no
+      const { faculty_id } = req.params; // Identifier could be roll_no or aadhaar_no
       const updatedFields = req.body;
 
-      const updatedstaff = await updateStaffById(identifier, updatedFields);
+      const updatedstaff = await updateStaffById(faculty_id, updatedFields);
 
       if (!updatedstaff) {
           return res.status(404).json({ success: false, message: 'Faculty member not found' });
@@ -380,7 +419,7 @@ const updateFacultyPersonalDetails = async (req, res) => {
 
       res.json({ success: true, message: 'Faculty detail updated successfully', updatedstaff });
   } catch (error) {
-      console.error("Error updating student:", error.message);
+      console.error("Error updating faculty:", error.message);
       res.status(500).json({ success: false, message: 'An error occurred while updating the staff details' });
   }
 };

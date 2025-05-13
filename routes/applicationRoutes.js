@@ -26,7 +26,7 @@ const router = express.Router();
 // Route to submit new student application (protected by file upload handling)
 router.post(
   "/newApplication",
-  authenticateUser,
+  //authenticateUser,
   studentFileUploadMiddleware,
   handleFileErrors,
   newStudentApplication
@@ -38,43 +38,49 @@ router.get("/students/latest",authenticateUser, authorizeRoles('admin'), getLate
 // Route to fetch all pending applications (admin only)
 router.get(
   "/getPendingApplications",
-  authenticateUser,
-  authorizeRoles("admin"),
+  //authenticateUser,
+  //authorizeRoles("admin"),
   getPendingApplications
 );
 
 router.get(
   "/getRejectedApplications",
-  authenticateUser,
-  authorizeRoles("admin"),
+  //authenticateUser,
+  //authorizeRoles("admin"),
   getRejectedApplications
 );
 
 //Route to fetch all approved applications (admin only)
-router.get("/getApprovedApplications",authenticateUser, authorizeRoles('admin'), getApprovedApplications);
+router.get(
+  "/getApprovedApplications",
+  authenticateUser,
+  authorizeRoles('admin'),
+  getApprovedApplications
+);
+
 
 
 // Route to fetch a single application (admin only)
 router.get(
   "/getSingleApplication/:user_id",
-  authenticateUser,
-  authorizeRoles("admin", "staff"),
+  //authenticateUser,
+  //authorizeRoles("admin", "staff"),
   getSingleApplication
 );
 
 // Route to fetch their own application (only Self Access)
 router.get(
   "/getSingleApps/:user_id",
-  authenticateUser,
-  authorizeSelfAccess,
+  //authenticateUser,
+  //authorizeSelfAccess,
   getSingleApps
 );
 
 // Route to approve a new student application (admin only)
 router.put(
   '/approveApplicant/:application_id',
-  authenticateUser,
-  authorizeRoles('admin'),
+  //authenticateUser,
+ // authorizeRoles('admin'),
   approveApplicant
 );
 
@@ -97,8 +103,8 @@ router.post(
 // Route to approve yearly semester applications
 router.put(
   "/approveYearlySemester",
-  authenticateUser,
-  authorizeRoles("admin"),
+  //authenticateUser,
+  //authorizeRoles("admin"),
   approveYearlyApplication
 );
 module.exports = router;

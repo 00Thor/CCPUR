@@ -4,7 +4,7 @@ require("dotenv").config();
 const db = require("../config/db");
 const secretKey = process.env.ENCRYPTION_KEY;
 // Temporary store for mapping `ref_id` -> { user_id, aadhaar_number }
-const aadhaarVerificationStore = {};
+let aadhaarVerificationStore = {};
 
 // Hash Aadhaar number using SHA-256
 const hashAadhaar = (aadhaar_number) => {
@@ -23,9 +23,10 @@ const encryptData = (data) => {
 
 // Send OTP
 const verifyAadhaarDetails = async (req, res) => {
-    const { user_id } = req.params;
-    const { aadhaar_number } = req.body;
+    const { user_id } = req.params; // User ID from the request parameters
+    const { aadhaar_number } = req.body; // Aadhaar number from the request body
 
+    // Validate inputs
     if (!user_id) {
         return res.status(400).json({ success: false, message: "No user ID provided" });
     }
@@ -34,6 +35,39 @@ const verifyAadhaarDetails = async (req, res) => {
     }
 
     try {
+        const today = new Date().toISOString().split('T')[0]; // Get current date in 'YYYY-MM-DD' format
+
+        // Step 1: Check today's attempts from the database
+        const result = await db.query(
+            "SELECT attempts FROM aadhaar_verification_attempts WHERE user_id = $1 AND date = $2",
+            [user_id, today]
+        );
+
+        if (result.rows.length > 0) {
+            const attempts = result.rows[0].attempts;
+
+            // If the user has reached the limit of 3 attempts for today, deny further requests
+            if (attempts >= 3) {
+                return res.status(429).json({
+                    success: false,
+                    message: "Daily limit of Aadhaar OTP requests reached.",
+                });
+            }
+
+            // Step 2: Increment attempt count in the database
+            await db.query(
+                "UPDATE aadhaar_verification_attempts SET attempts = attempts + 1 WHERE user_id = $1 AND date = $2",
+                [user_id, today]
+            );
+        } else {
+            // Step 3: If no records for today's attempts, create a new record with 1 attempt
+            await db.query(
+                "INSERT INTO aadhaar_verification_attempts (user_id, date, attempts) VALUES ($1, $2, $3)",
+                [user_id, today, 1]
+            );
+        }
+
+        // Step 4: Request OTP from Cashfree API
         const response = await axios.post(
             "https://api.cashfree.com/verification/offline-aadhaar/otp",
             { aadhaar_number },
@@ -46,14 +80,17 @@ const verifyAadhaarDetails = async (req, res) => {
             }
         );
 
-        const { ref_id } = response.data;
+        const { ref_id } = response.data; // Extract the reference ID from the response
 
-        // Store ref_id mapping in memory
+        // Store ref_id to user_id mapping in memory (this should be persisted if necessary)
         aadhaarVerificationStore[ref_id] = { user_id, aadhaar_number };
 
+        // Respond with success
         return res.json({ success: true, data: response.data });
     } catch (error) {
         console.error("Error Sending OTP:", error.response?.data || error.message);
+
+        // Handle errors gracefully and return the appropriate error message
         return res.status(500).json({
             success: false,
             message: "An error occurred during Aadhaar OTP request.",

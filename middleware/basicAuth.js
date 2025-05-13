@@ -2,40 +2,48 @@ const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
 const cookieParser = require("cookie-parser"); 
 
-require("dotenv").config();
+
 const authenticateUser = async (req, res, next) => {
   try {
-    // Debugging: Check incoming cookies
-    console.log("All cookies received:", req.cookies);
 
-    // Extract token from cookies
-    const token = req.cookies.authToken;
-    console.log("Extracted token:", token);
-
-    if (!token) {
+    //const token = req.cookies.authToken;
+    // Extract token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ error: "Access denied. No token provided." });
     }
+    const token = authHeader.split(" ")[1];
+    console.log("Extracted Token:", token);
+
+    // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const userResult = await pool.query("SELECT user_id, role FROM users WHERE email = $1", [decoded.email]);
+    // Query user table
+    const userQuery = `
+      SELECT user_id, role 
+      FROM users 
+      WHERE email = $1
+      UNION ALL
+      SELECT faculty_id AS user_id, role 
+      FROM faculty 
+      WHERE email = $1
+    `;
+    const result = await pool.query(userQuery, [decoded.email]);
 
-    if (userResult.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(403).json({ error: "User not found." });
     }
 
-    const user = userResult.rows[0];
-
     // Attach user details to request
+    const user = result.rows[0];
     req.user = { id: user.user_id, role: user.role, email: decoded.email };
-    console.log("Authenticated user:", req.user);
 
-    next();
+    next(); // Proceed to the next middleware
   } catch (error) {
-    console.error("JWT Error:", error);
+    console.error("JWT Error:", error.message);
     res.status(401).json({ error: "Invalid or expired token." });
   }
 };
-
 
 const authorizeSelfAccess = async (req, res, next) => {
   try {

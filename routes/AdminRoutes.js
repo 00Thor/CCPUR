@@ -9,12 +9,13 @@ const {
     getAllFaculty
 } = require('../controller/basicFacultyController');
 const { getAllStudentsDetails, getStudentById, deleteStudent, updateStudent, getLatestStudents } = require('../controller/adminController');
-const { handleFileErrors, uploadFacultyFilesMiddleware, processFacultyFiles } = require('../middleware/fileUploadMiddleware');
+const { handleFileErrors, uploadFacultyFilesMiddleware } = require('../middleware/fileUploadMiddleware');
 const { insertFacultyAcademicRecords, deleteFacultyAcademicRecords, updateFacultyRecords, readFacultyAcademicRecords } = require('../controller/facultyAcademicRecordsController');
 const { createCommitteeRoles, retrieveFacultyCommitteeRoles, updateCommitteeRoles, deleteFacultyCommiteeRoles } = require('../controller/committeeRolesController');
 const { authenticateUser, authorizeRoles, authorizeSelfAccess } = require('../middleware/basicAuth');
-const { getFacultyFiles, uploadFacultyFiles, updateFacultyFiles } = require('../controller/facultyFileUploadController');
+const { getFacultyFiles, updateFacultyFiles, deleteFacultyFiles } = require('../controller/facultyFileUploadController');
 const handleFacultyCRUDController = require('../controller/faccultyCRUDController');
+
 
 
 const router = express.Router();
@@ -22,16 +23,29 @@ const router = express.Router();
 /* ************************* STUDENT **************************** */
 
 // Route to fetch student details (Admin & Staff)
-router.get('/getStudentDetails/:user_id',authenticateUser, authorizeRoles('admin'), getStudentById);
+router.get('/getStudentDetails/:user_id',
+  //authenticateUser, 
+  //authorizeRoles('admin'),
+   getStudentById);
 
 // Route to fetch student details (Admin & Staff)
-router.get('/getAllStudentDetails',authenticateUser,authorizeRoles('admin'), getAllStudentsDetails);
+router.get('/getAllStudentDetails',
+  //authenticateUser,
+  //authorizeRoles('admin'),
+  getAllStudentsDetails);
 
 // Route to update student details(Admin Only)
-router.put('/updateStudentDetails/:user_id', authenticateUser, authorizeRoles('admin'), updateStudent);
+router.put('/updateStudentDetails/:user_id', 
+  //authenticateUser, 
+  //authorizeRoles('admin'), 
+  updateStudent);
 
 // Route to delete student details(Admin Only)
-router.delete('/deleteStudentDetails/:user_id',authenticateUser, authorizeRoles('admin'), deleteStudent);
+router.delete('/deleteStudentDetails/:user_id',
+ // authenticateUser,
+  // authorizeRoles('admin'),
+   deleteStudent);`WSTBY.;'
+   `
 
 // Route to fetch all/some faculty details (Admin Only)
 router.get('/getLatestStudent',authenticateUser,authorizeRoles('admin'), getLatestStudents);
@@ -61,40 +75,42 @@ router.get("/getAllFaculty", getAllFaculty)
 //####  PERSONAL
 //enter Faculty personal details only
 router.post("/faculty-registration",
-  authenticateUser,
-  authorizeRoles('admin'),
-  handleFileErrors,
+ // authenticateUser,
+  //authorizeRoles('admin'),
+ // handleFileErrors,
   newFaculty
 );
 
 // Get faculty files by faculty ID
 router.get(
   "/getFacultyFiles/:faculty_id",
-  authenticateUser,
-  authorizeRoles("admin"),
-  authorizeSelfAccess,
+  //authenticateUser,
+  //authorizeRoles("admin"),
+  //authorizeSelfAccess,
   getFacultyFiles
 );
-
-// Faculty file upload
-router.post(
-  "/facultyFileUpload/:faculty_id",
- // authenticateUser,
-  uploadFacultyFilesMiddleware,
-  handleFileErrors,
-  processFacultyFiles,
-  uploadFacultyFiles
-);
-
+// const logRequest = (req, res, next) => {
+//   console.log("Received request:", req.method, req.url);
+//   console.log("Request body:", req.body);
+//   console.log("Request files:", req.files);
+//   next();
+// }
 // Update faculty files by faculty ID
 router.put(
-  "/facultyFiles/:faculty_id",
-  authenticateUser,
-  authorizeRoles("admin"),
+  "/facultyFileUpload/:faculty_id",
+  uploadFacultyFilesMiddleware,
+  handleFileErrors,
+  //logRequest,
   updateFacultyFiles
 );
+
+router.delete(
+  "/facultyFile/:faculty_id",
+  deleteFacultyFiles
+);
+
 //UPDATE faculty personal details
-router.put("/updateFacultyDetails", updateFacultyPersonalDetails)
+router.put("/updateFacultyDetails/:faculty_id", updateFacultyPersonalDetails)
 
  //DELETE faculty personal details
  router.delete("/deleteFaculty/:faculty_id", deleteFaculty)

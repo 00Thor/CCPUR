@@ -27,11 +27,9 @@ const studentFilesUpload = async (req, client) => {
         if (!file.buffer || !file.size) {
           throw new Error(`Invalid file data for field: ${key}`);
         }
-        console.log('user_id:', user_id); // Check if this logs the correct user_id.
 
         // Use user_id as the folder name in Azure Blob Storage
         const blobName = `${user_id}/${key}-${file.originalname}`;
-        console.log('blobName:', blobName); // Check the final blob name to see what value it holds
         filePaths[key] = await uploadToBlob(
           CONTAINER_NAME, 
           null,

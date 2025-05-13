@@ -513,3 +513,78 @@ CREATE TABLE aadhaar_verification (
 -- 30. FUNCTIONS AND TRIGGERS
 
 COMMIT;
+
+
+CREATE TABLE department (
+    department_id SERIAL PRIMARY KEY,
+    department_name VARCHAR(150) NOT NULL,
+    description TEXT
+);
+-- 16. FACULTY TABLE
+CREATE TABLE faculty (
+    faculty_id SERIAL PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(150),
+    password VARCHAR(50),
+    address TEXT,
+    contact_number VARCHAR(15),
+    date_of_birth DATE,
+    gender TEXT,
+    designation VARCHAR(255),
+    type TEXT,
+    joining_date DATE,
+    teaching_experience VARCHAR(200),
+    engagement VARCHAR(150),
+    category VARCHAR(50),
+    academic_qualifications VARCHAR(700),
+    role VARCHAR(50) DEFAULT 'staff',
+    department_id INT REFERENCES department(department_id) ON DELETE SET NULL
+);
+
+-- 17. FACULTY_ACADEMIC_RECORDS TABLE
+CREATE TABLE faculty_academic_records (
+    record_id SERIAL PRIMARY KEY,
+    faculty_id INT NOT NULL,
+    number_of_journal_published INT DEFAULT 0,
+    number_of_books_published INT DEFAULT 0,
+    number_of_books_edited INT DEFAULT 0,
+    number_of_seminars_attended INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE faculty_academic_records
+ADD CONSTRAINT fk_faculty
+FOREIGN KEY (faculty_id)
+REFERENCES faculty(faculty_id)
+ON DELETE CASCADE
+ON UPDATE CASCADE;
+
+-- 18. COMMITTEE TABLE
+CREATE TABLE committee (
+    committee_id SERIAL PRIMARY KEY,
+    committee_name VARCHAR(200) NOT NULL,
+    committee_type VARCHAR(200),
+    committee_description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 19. FACULTY_COMMITTEE_ROLES TABLE
+CREATE TABLE faculty_committee_roles (
+    role_id SERIAL PRIMARY KEY,
+    faculty_id INT NOT NULL REFERENCES faculty(faculty_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    committee_id INT NOT NULL REFERENCES committee(committee_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    role_in_committee VARCHAR(200) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 20. FACULTY_FILES TABLE
+CREATE TABLE faculty_files (
+    id SERIAL PRIMARY KEY,
+    faculty_id INT NOT NULL REFERENCES faculty(faculty_id) ON DELETE CASCADE,
+    file_type TEXT NOT NULL, -- e.g., 'profile_photos', 'books_published', 'seminars_attended'
+    file_path TEXT NOT NULL, -- Path or URL to the uploaded file
+    uploaded_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
