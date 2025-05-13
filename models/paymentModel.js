@@ -119,9 +119,9 @@ const insertStudentId = async (paymentData, client) => {
   `;
 
   const values = [
-    paymentData.student_id || null, // Use null if student_id is not provided
-    paymentData.application_id, // application_id must be provided here
-    paymentData.payment_status || "Pending", // Default to "Pending" if not provided
+    paymentData.student_id || null, 
+    paymentData.application_id, 
+    paymentData.payment_status || "pending", 
   ];
 
   const result = await client.query(query, values); // Use the transaction client

@@ -11,7 +11,7 @@ router.post("/register", newUser);
 router.post("/login", login);
 router.post("/resetpassword", resetpassword);
 router.post("/forgotpassword", forgotpassword);
-router.get("/getusers", authenticateUser, getUser);
+router.get("/getusers/:user_id", authenticateUser, getUser);
 
 
 

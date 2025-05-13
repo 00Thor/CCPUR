@@ -13,13 +13,12 @@ const createUser = async (name, email, hashedPassword, role = "student", program
   return result.rows[0];
 };
 
-
-
 // Update user's password
 const updateUserPassword = async (email, hashedPassword) => {
   const query = "UPDATE users SET password = $1 WHERE email = $2";
   await pool.query(query, [hashedPassword, email]);
 };
+
 
 module.exports = {
   findUserByEmail,

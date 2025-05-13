@@ -1,5 +1,5 @@
 const semesterExam = require("../models/modelSemesterExamination");
-require("../config/db");
+const pool = require("../config/db");
 
 const semesterExamination = async (req, res) => {
   try {
@@ -83,7 +83,7 @@ const getSemesterExaminationDetails = async(req, res) => {
     res.status(200).json(result.rows);
   }
   catch(error) {
-    console.log('Failed to fetch semster exam details')
+    console.log('Failed to fetch semster exam details', error.message)
     res.status(500).json({error: "internal Server Error"})
   }
 }; 

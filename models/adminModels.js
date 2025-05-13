@@ -26,31 +26,6 @@ async function getStaff(filters, limit, offset) {
     return query(query, values);
 }
 
-// Delete a student either by Roll Number or Aadhaar Number
-const deletingStudent = async (req, res) => {
-    try {
-        const { student_id } = req.params;
-
-        if (!student_id) {
-            return res.status(400).json({ success: false, message: "No id passed from params" });
-        }
-
-        let query = '';
-            query = 'DELETE FROM student_details WHERE student_id = $1 RETURNING *';
-        const result = await query(query);
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ success: false, message: "Student not found" });
-        }
-
-        res.status(200).json({ success: true, message: "Student deleted successfully", data: result.rows[0] });
-
-    } catch (error) {
-        console.error("Error deleting student:", error.message);
-        res.status(500).json({ success: false, message: "An error occurred while deleting the student" });
-    }
-};
-
 
 // Update student details dynamically
 const updateStudentById = async (studentId, updatedFields) => {
@@ -73,7 +48,7 @@ const updateStudentById = async (studentId, updatedFields) => {
         const query = `UPDATE student_details SET ${setClause} WHERE user_id = $${values.length} RETURNING *`;
 
         // Execute query using your database client
-        const result = await pool.query(query, values); // Replace `db` with your actual database client instance
+        const result = await pool.query(query, values);
 
         if (result.rows.length === 0) {
             throw new Error("Student not found");
@@ -102,4 +77,4 @@ const getLatestAdmittedStudents = async () => {
     }
 };
 
-module.exports= { getStudentByIdFromDB, getStaff, deletingStudent, updateStudentById, getLatestAdmittedStudents };
+module.exports= { getStudentByIdFromDB, getStaff, updateStudentById, getLatestAdmittedStudents };

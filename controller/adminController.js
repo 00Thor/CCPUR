@@ -1,5 +1,4 @@
-const { getStudentByIdFromDB, updateStudentById, deletingStudent, getLatestAdmittedStudents} = require('../models/adminModels');
-const { updateStaffById} = require('../models/facultyInfoModels')
+const { getStudentByIdFromDB, updateStudentById, getLatestAdmittedStudents} = require('../models/adminModels');
 const pool = require('../config/db'); // Import the pool
 
 
@@ -15,7 +14,7 @@ async function getStudentById(req, res) {
         const result = await getStudentByIdFromDB(user_id);
 
         if (!result) {
-            return res.status(404).json({ error: 'Student not found' });
+            return res.status(204).json({ error: 'No Student Data in DB' });
         }
 
         res.json(result);
@@ -28,7 +27,7 @@ async function getStudentById(req, res) {
 async function getAllStudentsDetails(req, res) {
   try {
     // SQL query to fetch all students
-    const result = await pool.query('SELECT * FROM student_details');
+    const result = await pool.query('SELECT user_id, full_name, email, gender, course, subject, current_semester, blood_group FROM student_details');
     res.json(result.rows); // Return the result to the client
   } catch (error) {
     console.error('Error fetching students:', error);
@@ -36,38 +35,41 @@ async function getAllStudentsDetails(req, res) {
   }
 }
 
-// Get all faculty/staff details
-const getStaffDetails = async (req, res) => {
-    try {
-        // Query to fetch all records
-        const query = 'SELECT * FROM faculty';
-        const result = await pool.query(query);
 
-        // Return all rows
-        res.json(result.rows);
-    } catch (error) {
-        console.error("Error fetching staff details:", error.message);
-        res.status(500).json({ error: error.message });
-    }
-};
 
-// Delete Student by Roll Number or Aadhaar Number
+// Delete a student either by Roll Number or Aadhaar Number
 const deleteStudent = async (req, res) => {
     try {
-        const { identifier } = req.params; // Identifier could be roll_no or aadhaar_no
+        const { user_id } = req.params; // Extract the user_id from request parameters
 
-        const student = await deletingStudent(identifier);
-
-        if (!student) {
-            return res.status(404).json({ success: false, message: 'Student not found' });
+        if (!user_id) {
+            return res.status(400).json({ success: false, message: "No user_id provided" });
         }
 
-        res.json({ success: true, message: 'Student deleted successfully', student });
+        // Execute the DELETE query
+        const query = 'DELETE FROM student_details WHERE user_id = $1 RETURNING *';
+        const result = await pool.query(query, [user_id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Student not found" });
+        }
+
+        // Return success response
+        res.status(200).json({ 
+            success: true, 
+            message: "Student deleted successfully", 
+            data: result.rows[0] 
+        });
     } catch (error) {
         console.error("Error deleting student:", error.message);
-        res.status(500).json({ success: false, message: 'An error occurred while deleting the student' });
+        res.status(500).json({ 
+            success: false, 
+            message: "An error occurred while deleting the student", 
+            error: error.message 
+        });
     }
 };
+
 
 // Update Student Details (Dynamic Update)
 const updateStudent = async (req, res) => {
@@ -158,26 +160,12 @@ const getLatestStudents = async (req, res) => {
     }
 };
 
-// Update Staff Details (Dynamic Update)
-const updateStaffDetails = async (req, res) => {
-    try {
-        const { identifier } = req.params; // Identifier could be roll_no or aadhaar_no
-        const updatedFields = req.body;
 
-        const updatedstaff = await updateStaffById(identifier, updatedFields);
-
-        if (!updatedstaff) {
-            return res.status(404).json({ success: false, message: 'Faculty member not found' });
-        }
-
-        res.json({ success: true, message: 'Faculty detail updated successfully', updatedstaff });
-    } catch (error) {
-        console.error("Error updating student:", error.message);
-        res.status(500).json({ success: false, message: 'An error occurred while updating the staff details' });
-    }
+module.exports = { getStudentById,
+    getAllStudentsDetails, 
+    deleteStudent,
+    updateStudent,
+    approveApplicant,
+    rejectApplicant,
+    getLatestStudents,
 };
-
-
-module.exports = { getStudentById, getAllStudentsDetails, 
-    getStaffDetails, deleteStudent, updateStudent,
-     approveApplicant, rejectApplicant, getLatestStudents, updateStaffDetails,};

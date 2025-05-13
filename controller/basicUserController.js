@@ -32,7 +32,6 @@ const newUser = async (req, res) => {
     if (!newUser) {
       return res.status(500).json({ message: "Error creating user" });
     }
-    console.log("User registered successfully:", newUser);
 
     return res.status(201).json({
       message: "User registered successfully",
@@ -54,31 +53,52 @@ const newUser = async (req, res) => {
 const login = async (req, res) => {
   const { email, password } = req.body;
 
+  // Validate input
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required" });
   }
-
   try {
+    // Fetch user by email
     const user = await findUserByEmail(email);
     if (!user) {
       return res.status(400).json({ error: "User not found" });
     }
-
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ error: "Invalid password" });
     }
-
-    // Generate JWT with user role
+    // Generate JWT token
     const token = jwt.sign(
-      { user_id: user.user_id, email: user.email, role: user.role, program: user.program },
+      {
+        user_id: user.user_id,
+        email: user.email,
+        role: user.role,
+        program: user.program,
+      },
       process.env.JWT_SECRET,
-      { expiresIn: "10h" }
+      { expiresIn: "5h" } // Token expiration time
     );
-   res.json({
-       message: "Login successful",
-       token
-     });
+
+    // res.cookie("authToken", token, {
+    //   httpOnly: true,
+    //   secure: true, 
+    //   sameSite: "None",
+    //   maxAge: 5 * 60 * 60 * 1000,
+    // });
+    // res.cookie("authToken", token, {
+    //   httpOnly: true,
+    //   secure: false, // Use `true` if testing with HTTPS
+    //   sameSite: "None", // Allows cross-origin cookies
+    //   path: "/", // Root path for the cookie
+    // });
+    
+
+    
+    res.status(200).json({
+      message: "Login successful",
+      user_id: user.user_id, 
+       authToken: token ,
+    });
   } catch (error) {
     console.error("Error in login:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -87,10 +107,10 @@ const login = async (req, res) => {
 
 // Configure the transporter
 const transporter = nodemailer.createTransport({
-  service: "gmail", // Change this if using another service
+  service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER, // Your email address
-    pass: process.env.EMAIL_PASS, // App password (not your regular password)
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
@@ -156,16 +176,16 @@ const resetpassword = async (req, res) => {
 };
 const getUser = async (req, res) => {
   try {
-    // Ensure `req.user` has been set by middleware
-    if (!req.user || !req.user.email) {
-      return res.status(400).json({ error: "Invalid request. User email is missing." });
+    const { user_id } = req.params;
+  
+    if (!user_id ) {
+      return res.status(400).json({ error: "Invalid request. User ID is missing." });
     }
+    console.log("Cookies:", req.cookies);
 
-    const email = req.user.email; // Extract email from the authenticated request
-    console.log("Decoded user email:", email);
 
     // Query the database to find the user
-    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    const result = await pool.query("SELECT name,program,user_id FROM users WHERE user_id = $1", [user_id]);
     console.log("Query result:", result.rows);
 
     // Check if user exists
@@ -178,8 +198,42 @@ const getUser = async (req, res) => {
 
     // Respond with the user's details
     res.status(200).json({
-      name: user.name,
+      name: user.name,  
       program: user.program,
+      user_id: user.user_id
+    });
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ID card fetching
+const StudentIDCard = async (req, res) => {
+  try {
+    const { user_id } = req.params;
+    // Ensure `req.user` has been set by middleware
+    if (!user_id ) {
+      return res.status(400).json({ error: "Invalid request. User ID is missing." });
+    }
+
+
+    // Query the database to find the user
+    const result = await pool.query("SELECT name,program FROM users WHERE user_id = $1", [user_id]);
+    console.log("Query result:", result.rows);
+
+    // Check if user exists
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Extract the user's details
+    const user = result.rows[0];
+
+    // Respond with the user's details
+    res.status(200).json({
+      name: user.name,  
+      program: user.program
     });
   } catch (error) {
     console.error("Error fetching user details:", error);
@@ -188,11 +242,11 @@ const getUser = async (req, res) => {
 };
 
 
-
 module.exports = {
   newUser,
   login,
   resetpassword,
   forgotpassword,
   getUser,
+  StudentIDCard
 };

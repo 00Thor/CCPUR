@@ -1,51 +1,61 @@
 const express = require("express");
 const {
   studentFileUploadMiddleware,
-  uploadFacultyPhotoMiddleware,
   compressUploadedImages,
+  handleFileErrors,
+  studentFileUpdateMiddleware
 } = require("../middleware/fileUploadMiddleware");
 const {
   studentFilesUpload,
-  getSecureFiles,
-  uploadFacultyFiles,
-  getFacultyFiles,
-} = require("../controller/fileUploadController");
-const { authenticateUser, authorizeRoles } = require("../middleware/basicAuth");
+  updateStudentFiles,
+  deleteStudentFiles,
+  getStudentFiles,
+} = require("../controller/studentFileUploadController");
+const { authenticateUser, authorizeRoles, authorizeSelfAccess } = require("../middleware/basicAuth");
 
 const router = express.Router();
 
-// Upload Student files (passport and signature)
+// Upload Student files (all files)
 router.post(
   "/studentFileUpload",
   authenticateUser,
   studentFileUploadMiddleware,
-  compressUploadedImages, // Compress after upload
+  compressUploadedImages,
   studentFilesUpload
 );
 
-// Securely retrieve specific files by user ID and filename
+// Securely retrieve student files by user ID and filename
 router.get(
   "/secure-getfiles/:user_id",
-  /*authenticateUser,
-    authorizeRoles("student", "staff", "admin"),*/
-  getSecureFiles
+  //authenticateUser,
+  //authorizeRoles("staff", "admin"),
+  getStudentFiles
+);
+// update student files 
+router.put(
+  "/updateFiles/:user_id",
+  //authenticateUser,
+  //authorizeRoles("admin"),
+  studentFileUpdateMiddleware,
+  compressUploadedImages,
+  handleFileErrors,
+  updateStudentFiles
 );
 
-// Faculty file upload
-router.post(
-  "/facultyFileUpload",
+// delete student files 
+router.delete(
+  "/deleteStudentFiles/:user_id",
   authenticateUser,
-  uploadFacultyPhotoMiddleware,
-  compressUploadedImages, // Compress after upload
-  uploadFacultyFiles
+  authorizeRoles("admin"),
+  deleteStudentFiles
 );
 
-// Get faculty files by faculty ID
+// Get student files for self only(student dashboard)
 router.get(
-  "/getFacultyFiles/:faculty_id",
+  "/getMyFiles/:user_id",
   authenticateUser,
-  authorizeRoles("staff", "admin"),
-  getFacultyFiles
+  authorizeSelfAccess,
+  getStudentFiles
 );
 
 module.exports = router;

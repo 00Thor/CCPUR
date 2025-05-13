@@ -1,83 +1,85 @@
+BEGIN TRANSACTION;
+-- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "pg_cron";
 
---1 Users table
+-- 1. USERS TABLE
 CREATE TABLE users (
-user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-name VARCHAR(300) NOT NULL,
-email VARCHAR(200) UNIQUE NOT NULL,
-program varchar(150),
-password varchar(250) NOT NULL,
-role VARCHAR(50) NOT NULL DEFAULT 'student'
+    user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(300) NOT NULL,
+    email VARCHAR(200) UNIQUE NOT NULL,
+    program VARCHAR(150),
+    password VARCHAR(250) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'student'
 );
-
---2 department
+-- 2. DEPARTMENT TABLE
 CREATE TABLE department (
-    department_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    department_id SERIAL PRIMARY KEY,
     department_name VARCHAR(150) NOT NULL,
     description TEXT
 );
 
-
---3 Table to store static semester values
+-- 3. SEMESTER TABLE
 CREATE TABLE semester (
     semester_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     semester VARCHAR(50) NOT NULL UNIQUE
 );
 
---4 table for student_details
+-- 4. STUDENT_DETAILS TABLE
 CREATE TABLE student_details (
-    student_id uuid NOT NULL DEFAULT uuid_generate_v4(),
-    session character varying(50),
-    full_name character varying(100),
-    date_of_birth date,
-    aadhaar_no character varying(14),
-    gender character varying(10),
-    category character varying(50),
-    nationality character varying(50),
-    religion character varying(50),
-    name_of_community character varying(50),
-    contact_no character varying(15),
-    blood_group character varying(5),
-    email character varying(100) UNIQUE,
-    fathers_name character varying(100),
-    fathers_occupation character varying(100),
-    mothers_name character varying(100),
-    mothers_occupation character varying(100),
-    permanent_address text,
-    present_address text,
-    guardian_name character varying(100),
-    guardian_address text,
-    hslc_board character varying(50),
-    hslc_rollno character varying(20),
-    hslc_year character varying,
-    hslc_div character varying(45),
-    hslc_tmarks character varying,
-    hslc_inst character varying(100),
-    classxii_board character varying(50),
-    classxii_rollno character varying(20),
-    classxii_year character varying,
-    classxii_div character varying(45),
-    classxii_tmarks character varying,  
-    classxii_inst character varying(100),
-    classxii_stream character varying(200),
-    course character varying(100),
-    mil character varying(50),
-    subject character varying(100),
-    abc_id character varying(50),
-    registration_no character varying(100),
-    course_code character varying(50),
-    roll_no character varying(20) UNIQUE,
-    user_id uuid,
-    agree boolean,
-    status character varying(20) DEFAULT 'not-graduated',
-    pincode character varying(200),
-    admission_date date,
-    current_semester character varying(25) DEFAULT '1st Semester',
+    student_id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    session VARCHAR(50),
+    full_name VARCHAR(100),
+    date_of_birth DATE,
+    aadhaar_no VARCHAR(14),
+    gender VARCHAR(10),
+    category VARCHAR(50),
+    nationality VARCHAR(50),
+    religion VARCHAR(50),
+    name_of_community VARCHAR(50),
+    contact_no VARCHAR(15),
+    blood_group VARCHAR(5),
+    email VARCHAR(100) UNIQUE,
+    fathers_name VARCHAR(100),
+    fathers_occupation VARCHAR(100),
+    mothers_name VARCHAR(100),
+    mothers_occupation VARCHAR(100),
+    permanent_address TEXT,
+    present_address TEXT,
+    guardian_name VARCHAR(100),
+    guardian_address TEXT,
+    hslc_board VARCHAR(50),
+    hslc_rollno VARCHAR(20),
+    hslc_year VARCHAR,
+    hslc_div VARCHAR(45),
+    hslc_tmarks VARCHAR,
+    hslc_inst VARCHAR(100),
+    classxii_board VARCHAR(50),
+    classxii_rollno VARCHAR(20),
+    classxii_year VARCHAR,
+    classxii_div VARCHAR(45),
+    classxii_tmarks VARCHAR,
+    classxii_inst VARCHAR(100),
+    classxii_stream VARCHAR(200),
+    course VARCHAR(100),
+    mil VARCHAR(50),
+    subject VARCHAR(100),
+    abc_id VARCHAR(50),
+    registration_no VARCHAR(100),
+    course_code VARCHAR(50),
+    roll_no VARCHAR(20) UNIQUE,
+    user_id UUID,
+    agree BOOLEAN,
+    status VARCHAR(20) DEFAULT 'not-graduated',
+    pincode VARCHAR(200),
+    admission_date DATE CURRENT_DATE,
+    current_semester VARCHAR(25) DEFAULT '1st Semester',
     PRIMARY KEY (student_id),
     CONSTRAINT student_details_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
 
---5 New students application
+-- 5. NEW_APPLICATIONS TABLE
 CREATE TABLE new_applications (
     application_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session VARCHAR(50),
@@ -103,13 +105,13 @@ CREATE TABLE new_applications (
     hslc_board VARCHAR(50),
     hslc_rollno VARCHAR(20),
     hslc_year INTEGER,
-    hslc_div VARCHAR(20),
+    hslc_div VARCHAR(25),
     hslc_tmarks INTEGER,
     hslc_inst VARCHAR(100),
     classxii_board VARCHAR(50),
     classxii_rollno VARCHAR(20),
     classxii_year INTEGER,
-    classxii_div VARCHAR(10),
+    classxii_div VARCHAR(25),
     classxii_tmarks INTEGER,
     classxii_inst VARCHAR(100),
     classxii_stream VARCHAR(250),
@@ -117,11 +119,12 @@ CREATE TABLE new_applications (
     mil VARCHAR(50),
     subject VARCHAR(100),
     user_id UUID,
-    agree boolean DEFAULT 'f'
     status VARCHAR(20) DEFAULT 'pending',
-    pincode varchar(20),
+    pincode VARCHAR(20),
+    agree boolean DEFAULT false,
     rejected_at timestamp without time zone,
-    accepted_at timestamp without time zone  
+    accepted_at timestamp without time zone
+
 );
 
 ALTER TABLE new_applications
@@ -131,7 +134,7 @@ REFERENCES users(user_id)
 ON UPDATE CASCADE
 ON DELETE SET NULL;
 
---6 file upload  table
+-- 6. FILE_UPLOADS TABLE
 CREATE TABLE file_uploads (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_id UUID,
@@ -159,7 +162,7 @@ CREATE TABLE file_uploads (
         ON UPDATE CASCADE ON DELETE SET NULL
 );
 
---7 PAYMENTS TABLE
+-- 7. PAYMENTS TABLE
 CREATE TABLE payments (
     payment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),                        
     student_id UUID,
@@ -179,6 +182,7 @@ CREATE TABLE payments (
         (application_id IS NOT NULL AND student_id IS NULL)
     )
 );
+
 ALTER TABLE payments
 ADD CONSTRAINT fk_student_id
 FOREIGN KEY (student_id)
@@ -191,18 +195,18 @@ FOREIGN KEY (application_id)
 REFERENCES new_applications(application_id)
 ON DELETE SET NULL;
 
---8 attandance
+-- 8. ATTENDANCE TABLE
 CREATE TABLE attendance (
-    attendance_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),         
-    student_id UUID REFERENCES student_details(student_id) ON DELETE CASCADE ON UPDATE CASCADE,           
-    date DATE NOT NULL,                        
-    subject_code VARCHAR(50),                  
-    status VARCHAR(150), 
+    attendance_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    student_id UUID REFERENCES student_details(student_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    date DATE NOT NULL,
+    subject_code VARCHAR(50),
+    status VARCHAR(150),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 9 library
+-- 9. LIBRARY TABLE
 CREATE TABLE library (
     book_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
@@ -216,17 +220,18 @@ CREATE TABLE library (
     added_date DATE DEFAULT CURRENT_DATE
 );
 
---10 Library_records
+-- 10. LIBRARY_RECORDS TABLE
 CREATE TABLE library_records (
-    borrow_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),              
-    student_id UUID,            
-    book_id VARCHAR(50),               
-    book_title VARCHAR(255),           
-    borrow_date DATE,                  
-    return_date DATE,                           
-    due_date DATE,                     
+    borrow_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    student_id UUID,
+    book_id VARCHAR(50),
+    book_title VARCHAR(255),
+    borrow_date DATE,
+    return_date DATE,
+    due_date DATE,
     fine DECIMAL(5, 2) DEFAULT 0.00
 );
+
 ALTER TABLE library_records
 ADD CONSTRAINT fk_student_id
 FOREIGN KEY (student_id)
@@ -234,13 +239,11 @@ REFERENCES student_details(student_id)
 ON DELETE CASCADE
 ON UPDATE CASCADE;
 
-
--- Step 11: Create the `academic_records` table
+-- 11. ACADEMIC_RECORDS TABLE
 CREATE TABLE academic_records (
     record_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     student_id UUID NOT NULL,
     semester_id UUID NOT NULL,
-    semester_id TEXT,
     course VARCHAR(200),
     exam_results VARCHAR(50),
     board VARCHAR(25),
@@ -251,34 +254,33 @@ CREATE TABLE academic_records (
 );
 
 ALTER TABLE academic_records
-ADD CONSTRAINT fk_student_id FOREIGN KEY (student_id) 
-REFERENCES student_details(student_id) 
-ON UPDATE CASCADE 
+ADD CONSTRAINT fk_student_id FOREIGN KEY (student_id)
+REFERENCES student_details(student_id)
+ON UPDATE CASCADE
 ON DELETE CASCADE;
 
 ALTER TABLE academic_records
-ADD CONSTRAINT fk_semester_id FOREIGN KEY (semester_id) 
-REFERENCES semester(semester_id) 
-ON DELETE CASCADE 
+ADD CONSTRAINT fk_semester_id FOREIGN KEY (semester_id)
+REFERENCES semester(semester_id)
+ON DELETE CASCADE
 ON UPDATE CASCADE;
 
-
--- 12 Create the `academic_subjects` table
+-- 12. ACADEMIC_SUBJECTS TABLE
 CREATE TABLE academic_subjects (
     subject_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     record_id UUID NOT NULL REFERENCES academic_records(record_id) ON DELETE CASCADE,
     subject VARCHAR(100) NOT NULL,
     grade CHAR(10),
-    marks NUMERIC(5,2)
+    marks NUMERIC(5, 2)
 );
 
---13 deferred deletion
+-- 13. DEFERRED_DELETIONS TABLE
 CREATE TABLE deferred_deletions (
     student_id UUID PRIMARY KEY,
     deletion_date TIMESTAMP NOT NULL
 );
 
---14 Graduation log
+-- 14. GRADUATION_LOGS TABLE
 CREATE TABLE graduation_logs (
     log_id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     student_id UUID NOT NULL,
@@ -291,40 +293,39 @@ CREATE TABLE graduation_logs (
     restored_by UUID
 );
 
-
---15 Prices table
+-- 15. FEE_PRICING TABLE
 CREATE TABLE fee_pricing (
     id SERIAL PRIMARY KEY,
     payment_type VARCHAR(50) NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
-    currency VARCHAR(10) DEFAULT 'INR', 
-    course text,
+    currency VARCHAR(10) DEFAULT 'INR',
+    course TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
---16 Faculty table
+-- 16. FACULTY TABLE
 CREATE TABLE faculty (
-faculty_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),                
-name VARCHAR(150) NOT NULL,
-email varchar(150),
-address text,
-contact_number varchar(15),
-date_of_birth date,
-gender text,              
-department VARCHAR(100),
-designation varchar(255),
-type TEXT,
-joining_date date,
-teaching_experience varchar(200),
-engagement varchar(150),
-category varchar(50),
-academic_qualifications varchar(700),
-department_id UUID REFERENCES department(department_id) ON DELETE SET NULL
+    faculty_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(150),
+    password VARCHAR(150),
+    address TEXT,
+    contact_number VARCHAR(25),
+    date_of_birth DATE,
+    gender TEXT,
+    designation VARCHAR(255),
+    type TEXT,
+    joining_date DATE,
+    teaching_experience VARCHAR(200),
+    engagement VARCHAR(150),
+    category VARCHAR(150),
+    academic_qualifications VARCHAR(700),
+    role VARCHAR(150) DEFAULT 'staff',
+    department_id INT REFERENCES department(department_id) ON DELETE SET NULL
 );
 
-
---17 Faculty academic records
+-- 17. FACULTY_ACADEMIC_RECORDS TABLE
 CREATE TABLE faculty_academic_records (
     record_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     faculty_id UUID NOT NULL,
@@ -339,13 +340,13 @@ CREATE TABLE faculty_academic_records (
 ALTER TABLE faculty_academic_records
 ADD CONSTRAINT fk_faculty
 FOREIGN KEY (faculty_id)
-REFERENCES faculty (faculty_id)
-ON DELETE CASCADE
+REFERENCES faculty(faculty_id)
+ON DELETE CASCADE    
 ON UPDATE CASCADE;
 
---18 Committee
+-- 18. COMMITTEE TABLE
 CREATE TABLE committee (
-    committee_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    committee_id SERIAL PRIMARY KEY,
     committee_name VARCHAR(200) NOT NULL,
     committee_type VARCHAR(200),
     committee_description TEXT,
@@ -353,18 +354,17 @@ CREATE TABLE committee (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-
---19 Faculty committee Roles
+-- 19. FACULTY_COMMITTEE_ROLES TABLE
 CREATE TABLE faculty_committee_roles (
-    role_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    faculty_id UUID NOT NULL REFERENCES faculty(faculty_id) ON DELETE CASCADE,
-    committee_id UUID NOT NULL REFERENCES committee(committee_id) ON DELETE CASCADE,
+    role_id SERIAL PRIMARY KEY,
+    faculty_id UUID NOT NULL REFERENCES faculty(faculty_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    committee_id INT NOT NULL REFERENCES committee(committee_id) ON UPDATE CASCADE ON DELETE CASCADE,
     role_in_committee VARCHAR(200) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
- 
- --20 Faculty files storing as an array
+
+-- 20. FACULTY_FILES TABLE
 CREATE TABLE faculty_files (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   faculty_id UUID NOT NULL REFERENCES faculty(faculty_id) ON DELETE CASCADE,
@@ -373,8 +373,7 @@ CREATE TABLE faculty_files (
   uploaded_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-
---21 exams results
+-- 21. EXAM_RESULTS TABLE
 CREATE TYPE status_enum AS ENUM ('Pass', 'Fail');
 
 CREATE TABLE exam_results (
@@ -386,13 +385,13 @@ CREATE TABLE exam_results (
     status status_enum NOT NULL
 );
 
---22 documents
+-- 22. DOCUMENTS TABLE
 CREATE TABLE documents (
-  doc_id SERIAL PRIMARY KEY,
-  title VARCHAR(255) NOT NULL,
-  file_path TEXT NOT NULL,
-  description TEXT,
-  uploaded_at DATE DEFAULT CURRENT_DATE
+    doc_id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    file_path TEXT NOT NULL,
+    description TEXT,
+    uploaded_at DATE DEFAULT CURRENT_DATE
 );
 
 --23 Student_examinations
@@ -415,8 +414,7 @@ CREATE TABLE semester_examinations (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
-
---24 Student_exams papers
+--24.1 Student_exams papers
 CREATE TABLE student_exam_papers (
     id SERIAL PRIMARY KEY,
     examination_id UUID REFERENCES semester_examinations(examination_id) ON DELETE CASCADE,
@@ -435,7 +433,9 @@ CREATE TABLE student_education_history (
     division VARCHAR(50),
     subjects_taken TEXT
 );
-- 26. alumni_academic_records
+
+
+-- 26. alumni_academic_records
 CREATE TABLE alumni_records (
     alumni_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session VARCHAR(50),
@@ -474,17 +474,57 @@ CREATE TABLE alumni_academic_records (
     course VARCHAR(200),
     alumni_id UUID,
     CONSTRAINT fk_alumni_id FOREIGN KEY (alumni_id)
-        REFERENCES alumni_academic_records(alumni_id) ON DELETE CASCADE
+        REFERENCES alumni_records(alumni_id) ON DELETE CASCADE
 );
 
+-- 28
+CREATE TABLE webpageFiles (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    uploaded_files JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
---28 Triggers and Functions
+--29
+CREATE TABLE aadhaar_verification (
+    verified_id SERIAL PRIMARY KEY,
+    aadhaar_masked VARCHAR(14),
+    aadhaar_hash TEXT,            
+    status VARCHAR(50),
+    message TEXT,
+    care_of TEXT,                 
+    address TEXT,                 
+    dob TEXT,                     
+    email TEXT,                   
+    gender VARCHAR(10),
+    name TEXT,                     
+    country VARCHAR(100),
+    dist TEXT,                     
+    house TEXT,                    
+    landmark TEXT,                 
+    pincode INT,
+    po TEXT,                       
+    state VARCHAR(100),
+    street TEXT,                   
+    subdist TEXT,                   
+    vtc TEXT,                       
+    locality TEXT,                  
+    user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE aadhaar_verification_attempts (
+    user_id VARCHAR(255) NOT NULL,
+    date DATE NOT NULL,
+    attempts INT DEFAULT 0,
+    PRIMARY KEY (user_id, date)
+);
+
+-- 30. FUNCTIONS AND TRIGGERS
 CREATE OR REPLACE FUNCTION move_to_alumni_with_log()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Check if the status has been updated to 'graduated'
     IF NEW.status = 'graduated' THEN
-        -- Move student to alumni_records
         INSERT INTO alumni_records (
             session, full_name, date_of_birth, aadhaar_no, sex, category, nationality, religion,
             name_of_community, contact_no, blood_group, email, fathers_name, fathers_occupation,
@@ -492,13 +532,12 @@ BEGIN
             guardian_address
         )
         VALUES (
-            OLD.session, OLD.full_name, OLD.date_of_birth, OLD.aadhaar_no, OLD.sex, OLD.category, 
-            OLD.nationality, OLD.religion, OLD.name_of_community, OLD.contact_no, OLD.blood_group, 
+            OLD.session, OLD.full_name, OLD.date_of_birth, OLD.aadhaar_no, OLD.sex, OLD.category,
+            OLD.nationality, OLD.religion, OLD.name_of_community, OLD.contact_no, OLD.blood_group,
             OLD.email, OLD.fathers_name, OLD.fathers_occupation, OLD.mothers_name, OLD.mothers_occupation,
             OLD.permanent_address, OLD.present_address, OLD.guardian_name, OLD.guardian_address
         );
 
-        -- Insert a log entry in graduation_logs
         INSERT INTO graduation_logs (
             student_id, full_name, program, graduated_by, graduation_date
         )
@@ -506,7 +545,6 @@ BEGIN
             OLD.student_id, OLD.full_name, OLD.program, NEW.updated_by, NOW()
         );
 
-        -- Schedule deletion of student record after 20 days
         INSERT INTO deferred_deletions (
             student_id, deletion_date
         )
@@ -514,12 +552,10 @@ BEGIN
             OLD.student_id, NOW() + INTERVAL '20 days'
         );
     END IF;
-
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Attach Trigger
 CREATE TRIGGER trigger_move_to_alumni_with_log
 AFTER UPDATE OF status
 ON student_details
@@ -527,45 +563,37 @@ FOR EACH ROW
 WHEN (NEW.status = 'graduated')
 EXECUTE FUNCTION move_to_alumni_with_log();
 
---Restore Student
+--Restore student 
 CREATE OR REPLACE FUNCTION restore_student_from_alumni()
 RETURNS TRIGGER AS $$
 DECLARE
     student_exists BOOLEAN;
 BEGIN
-    -- Check if student is already in student_details (avoid duplicates)
     SELECT EXISTS (SELECT 1 FROM student_details WHERE student_id = OLD.student_id) INTO student_exists;
-
     IF NOT student_exists THEN
-        -- Restore student
         INSERT INTO student_details (
-            student_id, session, full_name, date_of_birth, aadhaar_no, sex, category, nationality, 
-            religion, name_of_community, contact_no, blood_group, email, fathers_name, 
-            fathers_occupation, mothers_name, mothers_occupation, permanent_address, 
+            student_id, session, full_name, date_of_birth, aadhaar_no, sex, category, nationality,
+            religion, name_of_community, contact_no, blood_group, email, fathers_name,
+            fathers_occupation, mothers_name, mothers_occupation, permanent_address,
             present_address, guardian_name, guardian_address, status
         )
-        SELECT 
-            student_id, session, full_name, date_of_birth, aadhaar_no, sex, category, nationality, 
-            religion, name_of_community, contact_no, blood_group, email, fathers_name, 
-            fathers_occupation, mothers_name, mothers_occupation, permanent_address, 
-            present_address, guardian_name, guardian_address, 'active'
+        SELECT
+            student_id, session, full_name, date_of_birth, aadhaar_no, sex, category, nationality,
+            religion, name_of_community, contact_no, blood_group, email, fathers_name,
+            fathers_occupation, mothers_name, mothers_occupation, permanent_address,
+            present_address, guardian_name, guardian_address, 'not-graduated'
         FROM alumni_records
         WHERE student_id = OLD.student_id;
 
-        -- Update log to show recovery
         UPDATE graduation_logs
         SET restored_at = NOW(), restored_by = NEW.updated_by
         WHERE student_id = OLD.student_id;
-        
-        -- Remove from alumni_records
+
         DELETE FROM alumni_records WHERE student_id = OLD.student_id;
     END IF;
-    
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
--- trigger for restoring
 
 CREATE TRIGGER trigger_restore_student
 AFTER UPDATE OF status
@@ -574,54 +602,30 @@ FOR EACH ROW
 WHEN (NEW.status = 'restored')
 EXECUTE FUNCTION restore_student_from_alumni();
 
-
---Background Job for Deletion
---We can use pg_cron or a similar job scheduler, the following query can be used to delete records after 20 days
-
-DELETE FROM student_details
-WHERE student_id IN (
-    SELECT student_id FROM deferred_deletions
-    WHERE deletion_date <= NOW()
-);
--- Clean up the deferred_deletions table
-DELETE FROM deferred_deletions
-WHERE deletion_date <= NOW();
-
-
---29 
--- Trigger to delete rejected applications older than 30 days
-
--- Create a Scheduled Job to Delete Old Records
--- Use pg_cron or an external scheduler to periodically delete records older than 15 days with the status "rejected".
-
---Install pg_cron (if not already available)
---Follow the installation guide for your PostgreSQL version and OS. Once installed, add the extension to your database:
-
-CREATE EXTENSION IF NOT EXIST pg_cron;
---Schedule the Cleanup Job
 --Create a scheduled job to run daily and delete records older than 30 days.
+SELECT cron.schedule(
+    'delete_rejected_applications',
+    '0 0 * * *',
+    $$ DELETE FROM student_details
+       WHERE status = 'rejected'
+         AND rejected_at < NOW() - INTERVAL '30 days'; $$
+);
 
 SELECT cron.schedule(
-  'delete_rejected_applications',  -- Job name
-  '0 0 * * *',                    -- Schedule: daily at midnight
-  $$ DELETE FROM student_details
-     WHERE status = 'rejected'
-       AND rejected_at < NOW() - INTERVAL '30 days'; $$
+    'delete_accepted_applications',
+    '0 0 * * *',
+    $$ DELETE FROM student_details
+       WHERE status = 'accepted'
+         AND rejected_at < NOW() - INTERVAL '30 days'; $$
 );
 
---Trigger to delete accepted applications older than 30 days
 
-SELECT cron.schedule(
-  'delete_accepted_applications',  -- Job name
-  '0 0 * * *',                    -- Schedule: daily at midnight
-  $$ DELETE FROM student_details
-     WHERE status = 'accepted'
-       AND rejected_at < NOW() - INTERVAL '30 days'; $$
-);
+COMMIT;
 
-CREATE TABLE webpageFiles (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    uploaded_files JSONB,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+
+
+
+
+
+
+select * from faculty;
